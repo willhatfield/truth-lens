@@ -6,18 +6,14 @@ from ..streaming import stream_static_text
 
 
 def _generate_gemini_text(prompt: str, model: str, api_key: str) -> str:
-    import google.generativeai as genai
+    from google import genai
 
-    genai.configure(api_key=api_key)
-    generator = genai.GenerativeModel(model)
-    response = generator.generate_content(prompt, stream=True)
-
-    parts: list[str] = []
-    for chunk in response:
-        text = getattr(chunk, "text", None)
-        if text:
-            parts.append(text)
-    return "".join(parts)
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=model,
+        contents=prompt,
+    )
+    return response.text or ""
 
 
 async def stream_gemini(prompt: str) -> AsyncIterator[str]:
