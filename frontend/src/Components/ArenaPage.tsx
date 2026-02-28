@@ -5,6 +5,7 @@ import Heatmap from './Heatmap';
 import KnowledgeDeck from './KnowledgeDeck';
 import Pipeline from './Pipeline';
 import EvidenceNetwork from './EvidenceNetwork';
+import LiveHUD from './LiveHUD';
 
 export default function ArenaPage() {
   const navigate = useNavigate();
@@ -13,10 +14,10 @@ export default function ArenaPage() {
   // Active Visualization State
   const [activeVisualization, setActiveVisualization] = useState("Constellation");
   
-  // Accordion States - all set to false initially so they are collapsed
-  const [showVisualizationMenu, setShowVisualizationMenu] = useState(false);
-  const [showModels, setShowModels] = useState(false);
-  const [showTrust, setShowTrust] = useState(false);
+  // Accordion States - Set to true by default so the sidebar looks populated!
+  const [showVisualizationMenu, setShowVisualizationMenu] = useState(true);
+  const [showModels, setShowModels] = useState(true);
+  const [showTrust, setShowTrust] = useState(true);
   
   // State for AI Model Toggles
   const [selectedModels, setSelectedModels] = useState(['GPT-4 (OpenAI)', 'Gemini (Google)', 'Claude (Anthropic)', 'Llama 3 (Meta)', 'Kimi (Moonshot)']);
@@ -47,8 +48,7 @@ export default function ArenaPage() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#0A0E1A] text-[#EBF0FF]">
-      
-      {/* CSS Injection for hiding scrollbars globally in this component */}
+      <LiveHUD />
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -64,58 +64,68 @@ export default function ArenaPage() {
         }}
       />
 
-      {/* 2. FLOATING MENU TOGGLE (Now synchronized with Home style) */}
-        <button 
+      {/* 2. DYNAMIC MENU TOGGLE BUTTON */}
+      <button 
         onClick={() => setIsSidebarVisible(!isSidebarVisible)}
-        className="absolute z-50 flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] bg-[#121825] shadow-xl hover:brightness-125 active:scale-95 cursor-pointer group"
+        className={`absolute z-50 flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] active:scale-95 cursor-pointer group ${
+          isSidebarVisible 
+            ? 'bg-transparent border-transparent shadow-none' // Bare icon when open
+            : 'bg-[#121825]/60 backdrop-blur-xl border border-[#2C3A50]/50 shadow-xl hover:bg-[#121825]/80' // Frosted circle when closed
+        }`}
         style={{ 
-            width: isSidebarVisible ? '41px' : '66px', 
-            height: isSidebarVisible ? '41px' : '66px', 
+            width: isSidebarVisible ? '40px' : '66px', 
+            height: isSidebarVisible ? '40px' : '66px', 
             borderRadius: '26px',
-            left: isSidebarVisible ? '224px' : '40px', 
-            top: isSidebarVisible ? '37px' : '40px',
+            left: isSidebarVisible ? '240px' : '40px', // Slides into the sidebar header
+            top: isSidebarVisible ? '36px' : '40px',
         }}
-        >
-        {/* The Glow Effect */}
-        <span className="absolute inset-0 transition-opacity duration-300 rounded-full opacity-0 blur-md bg-[#A9BDE8]/20 group-hover:opacity-100" />
+      >
+        {!isSidebarVisible && (
+          <span className="absolute inset-0 transition-opacity duration-300 rounded-full opacity-0 blur-md bg-[#A9BDE8]/20 group-hover:opacity-100" />
+        )}
         
         <svg 
-            width="41" 
-            height="41" 
+            width={isSidebarVisible ? "24" : "32"} 
+            height={isSidebarVisible ? "24" : "32"} 
             viewBox="0 0 24 24" 
             fill="none" 
             xmlns="http://www.w3.org/2000/svg"
             className="relative z-10 transition-colors duration-200"
         >
-            <path 
-            d="M3 12H21M3 6H21M3 18H16" 
-            className="stroke-[#5E6E81] group-hover:stroke-[#EBF0FF]" 
-            strokeWidth="2.5" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
-            />
+          {isSidebarVisible ? (
+            // Collapse Chevron (LexonAI style)
+            <polyline points="15 18 9 12 15 6" className="stroke-[#5E6E81] group-hover:stroke-[#EBF0FF]" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          ) : (
+            // Expand Hamburger Menu
+            <path d="M3 12H21M3 6H21M3 18H16" className="stroke-[#5E6E81] group-hover:stroke-[#EBF0FF]" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          )}
         </svg>
-        </button>
+      </button>
 
-        {/* 3. FLOATING HOME BUTTON */}
-        <button 
+      {/* 3. DYNAMIC HOME BUTTON */}
+      <button 
         onClick={() => navigate('/')}
-        className="absolute z-50 flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] bg-[#121825] shadow-xl hover:brightness-125 active:scale-95 cursor-pointer group"
+        className={`absolute z-50 flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] active:scale-95 cursor-pointer group ${
+          isSidebarVisible 
+            ? 'bg-transparent border-transparent shadow-none' // Bare icon when open
+            : 'bg-[#121825]/60 backdrop-blur-xl border border-[#2C3A50]/50 shadow-xl hover:bg-[#121825]/80' // Frosted circle when closed
+        }`}
         style={{ 
-            width: isSidebarVisible ? '41px' : '66px', 
-            height: isSidebarVisible ? '41px' : '66px', 
+            width: isSidebarVisible ? '40px' : '66px', 
+            height: isSidebarVisible ? '40px' : '66px', 
             borderRadius: '26px',
-            left: isSidebarVisible ? '31px' : '40px',
-            bottom: isSidebarVisible ? '42px' : '40px',
+            left: isSidebarVisible ? '32px' : '40px', // Slides into the sidebar footer
+            bottom: isSidebarVisible ? '44px' : '40px',
         }}
-        >
-        {/* The Glow Effect */}
-        <span className="absolute inset-0 transition-opacity duration-300 rounded-full opacity-0 blur-md bg-[#A9BDE8]/20 group-hover:opacity-100" />
+      >
+        {!isSidebarVisible && (
+          <span className="absolute inset-0 transition-opacity duration-300 rounded-full opacity-0 blur-md bg-[#A9BDE8]/20 group-hover:opacity-100" />
+        )}
         
         <svg 
             xmlns="http://www.w3.org/2000/svg" 
-            width="41" 
-            height="41" 
+            width={isSidebarVisible ? "26" : "34"} 
+            height={isSidebarVisible ? "26" : "34"} 
             viewBox="0 0 41 41" 
             fill="none"
             className="relative z-10 transition-colors duration-200"
@@ -128,48 +138,48 @@ export default function ArenaPage() {
             strokeLinejoin="round"
             />
         </svg>
-        </button>
+      </button>
 
-      {/* 4. SIDEBAR BODY */}
+      {/* 4. RESTRUCTURED SIDEBAR (Flexbox Drawer with LexonAI Card Style) */}
       <aside 
-        className={`absolute z-20 bg-[#121825] flex flex-col pt-20 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-          isSidebarVisible ? 'translate-x-0 opacity-100' : '-translate-x-[110%] opacity-0'
+        className={`absolute z-40 bg-[#121825]/80 backdrop-blur-2xl border border-[#2C3A50]/50 shadow-[4px_0_24px_rgba(0,0,0,0.3)] flex flex-col transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+          isSidebarVisible ? 'translate-x-0 opacity-100' : '-translate-x-[120%] opacity-0'
         }`}
-        style={{ left: '15px', top: '25px', bottom: '25px', width: '267px', borderRadius: '26px' }}
+        style={{ left: '16px', top: '24px', bottom: '24px', width: '280px', borderRadius: '24px' }}
       >
-        <div className="flex flex-col items-center w-full space-y-3 overflow-y-auto no-scrollbar pb-10">
+        {/* Sidebar Header (Menu button physically lives on top of this) */}
+        <div className="h-16 w-full shrink-0 border-b border-[#2C3A50]/30 flex items-center px-6">
+          <span className="text-[#EBF0FF] font-bold tracking-[0.2em] text-sm uppercase opacity-90">TruthLens</span>
+        </div>
+
+        {/* Scrollable Content Zone */}
+        <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4">
           
-          {/* Section: Visualization */}
-          <div className="flex flex-col items-center w-full">
+          {/* Card 1: Visualization */}
+          <div className="bg-[#1A2335]/60 border border-[#2C3A50]/80 rounded-xl overflow-hidden backdrop-blur-sm">
             <button 
               onClick={() => setShowVisualizationMenu(!showVisualizationMenu)}
-              className="flex items-center px-4 transition-all bg-[#34445A] hover:brightness-110"
-              style={{ width: '248px', height: '38px', borderRadius: showVisualizationMenu ? '10px 10px 0 0' : '10px' }}
+              className="w-full px-4 py-3 flex justify-between items-center bg-[#253145]/80 hover:bg-[#2A374D] transition-colors"
             >
-              <div className="flex items-center space-x-3">
-                <svg width="14" height="10" viewBox="0 0 18 12" fill="none" style={{ transform: showVisualizationMenu ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }}>
-                  <path d="M1 1L9 10L17 1" stroke="#90A2B3" strokeWidth="2.5" strokeLinecap="round"/>
-                </svg>
-                <span className="font-bold text-[16px] text-[#90A2B3]">Visualization</span>
-              </div>
+              <span className="font-bold text-[12px] tracking-widest uppercase text-[#90A2B3]">Visualization</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#90A2B3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showVisualizationMenu ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
             </button>
+            
             {showVisualizationMenu && (
-              <div className="flex flex-col items-center py-2 space-y-1 shadow-xl bg-[#586983]" style={{ width: '248px', borderRadius: '0 0 10px 10px' }}>
+              <div className="p-2 space-y-1">
                 {navItems.map((item) => {
                   const isSelected = activeVisualization === item;
                   return (
                     <div 
                       key={item} 
                       onClick={() => setActiveVisualization(item)}
-                      className={`flex w-[210px] h-[30px] justify-start items-center px-3 cursor-pointer group rounded-md transition-all duration-200 ${
-                        isSelected ? 'bg-[#34445A]/60' : 'hover:bg-[#34445A]/30'
+                      className={`flex w-full h-[32px] items-center px-3 cursor-pointer rounded-lg transition-all duration-200 ${
+                        isSelected ? 'bg-[#34445A] border-l-2 border-[#A9BDE8]' : 'hover:bg-[#34445A]/40 border-l-2 border-transparent'
                       }`}
                     >
-                      <span className={`transition-colors text-[14px] ${
-                        isSelected 
-                          ? 'text-[#A9BDE8] font-semibold' 
-                          : 'text-[#EBF0FF] font-normal group-hover:text-[#A9BDE8]'
-                      }`}>
+                      <span className={`text-[13px] ${isSelected ? 'text-[#EBF0FF] font-semibold' : 'text-[#90A2B3] font-medium'}`}>
                         {item}
                       </span>
                     </div>
@@ -179,47 +189,44 @@ export default function ArenaPage() {
             )}
           </div>
 
-          {/* Section: AI Models */}
-          <div className="flex flex-col items-center w-full">
+          {/* Card 2: AI Models */}
+          <div className="bg-[#1A2335]/60 border border-[#2C3A50]/80 rounded-xl overflow-hidden backdrop-blur-sm">
             <button 
               onClick={() => setShowModels(!showModels)}
-              className="flex items-center px-4 transition-all bg-[#34445A] hover:brightness-110"
-              style={{ width: '248px', height: '38px', borderRadius: showModels ? '10px 10px 0 0' : '10px' }}
+              className="w-full px-4 py-3 flex justify-between items-center bg-[#253145]/80 hover:bg-[#2A374D] transition-colors"
             >
-              <div className="flex items-center space-x-3">
-                <svg width="14" height="10" viewBox="0 0 18 12" fill="none" style={{ transform: showModels ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }}>
-                  <path d="M1 1L9 10L17 1" stroke="#90A2B3" strokeWidth="2.5" strokeLinecap="round"/>
-                </svg>
-                <span className="font-bold text-[16px] text-[#90A2B3]">Models</span>
-              </div>
+              <span className="font-bold text-[12px] tracking-widest uppercase text-[#90A2B3]">Active Models</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#90A2B3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showModels ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
             </button>
+            
             {showModels && (
-              <div className="flex flex-col items-center py-3 space-y-2.5 bg-[#586983]" style={{ width: '248px', borderRadius: '0 0 10px 10px' }}>
+              <div className="p-3 space-y-3">
                 {aiModels.map((model) => {
                   const isSelected = selectedModels.includes(model.name);
                   return (
                     <div 
                       key={model.name} 
-                      className="flex items-center justify-start w-[210px] cursor-pointer space-x-3"
+                      className="flex items-center w-full cursor-pointer group"
                       onClick={() => toggleModel(model.name)}
                     >
                       <div 
-                        className="flex items-center justify-center transition-all duration-200"
+                        className="flex items-center justify-center transition-all duration-200 shrink-0"
                         style={{ 
-                          width: '16px', 
-                          height: '16px', 
-                          backgroundColor: isSelected ? model.color : 'rgba(255, 255, 255, 0.75)', 
+                          width: '16px', height: '16px', 
+                          backgroundColor: isSelected ? model.color : 'transparent', 
                           border: isSelected ? 'none' : `2px solid ${model.color}`,
-                          borderRadius: '3px' 
+                          borderRadius: '4px' 
                         }}
                       >
                         {isSelected && (
-                          <svg width="10" height="10" viewBox="0 0 22 24" fill="none">
-                            <path d="M18.3333 6L8.24996 17L3.66663 12" stroke={model.checkColor} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                            <path d="M20 6L9 17L4 12" stroke={model.checkColor} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
                           </svg>
                         )}
                       </div>
-                      <span className="text-[#EBF0FF] text-[14px] font-normal">{model.name}</span>
+                      <span className="ml-3 text-[#EBF0FF] text-[13px] font-medium group-hover:text-[#A9BDE8] transition-colors">{model.name}</span>
                     </div>
                   );
                 })}
@@ -227,28 +234,27 @@ export default function ArenaPage() {
             )}
           </div>
 
-          {/* Section: Safety Values (Legend) */}
-          <div className="flex flex-col items-center w-full">
+          {/* Card 3: Trust Status Legend */}
+          <div className="bg-[#1A2335]/60 border border-[#2C3A50]/80 rounded-xl overflow-hidden backdrop-blur-sm">
             <button 
               onClick={() => setShowTrust(!showTrust)}
-              className="flex items-center px-4 transition-all bg-[#34445A] hover:brightness-110"
-              style={{ width: '248px', height: '38px', borderRadius: showTrust ? '10px 10px 0 0' : '10px' }}
+              className="w-full px-4 py-3 flex justify-between items-center bg-[#253145]/80 hover:bg-[#2A374D] transition-colors"
             >
-              <div className="flex items-center space-x-3">
-                <svg width="14" height="10" viewBox="0 0 18 12" fill="none" style={{ transform: showTrust ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }}>
-                  <path d="M1 1L9 10L17 1" stroke="#90A2B3" strokeWidth="2.5" strokeLinecap="round"/>
-                </svg>
-                <span className="font-bold text-[16px] text-[#90A2B3]">Trust Status</span>
-              </div>
+              <span className="font-bold text-[12px] tracking-widest uppercase text-[#90A2B3]">Trust Status</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#90A2B3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showTrust ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
             </button>
+            
             {showTrust && (
-              <div className="flex flex-col items-center py-3 space-y-2.5 bg-[#586983]" style={{ width: '248px', borderRadius: '0 0 10px 10px' }}>
+              <div className="p-3 space-y-3">
                 {safetyValues.map((val) => (
-                  <div key={val.name} className="flex items-center justify-start w-[210px] space-x-3">
+                  <div key={val.name} className="flex items-center w-full">
                     <div 
-                      style={{ width: '16px', height: '16px', backgroundColor: val.color, borderRadius: '3px' }}
+                      className="shrink-0"
+                      style={{ width: '14px', height: '14px', backgroundColor: val.color, borderRadius: '3px' }}
                     />
-                    <span className="text-[#EBF0FF] text-[14px] font-normal">{val.name}</span>
+                    <span className="ml-3 text-[#EBF0FF] text-[13px] font-medium">{val.name}</span>
                   </div>
                 ))}
               </div>
@@ -256,12 +262,15 @@ export default function ArenaPage() {
           </div>
 
         </div>
+
+        {/* Sidebar Footer (Home button physically lives on top of this) */}
+        <div className="h-20 w-full shrink-0 border-t border-[#2C3A50]/30" />
       </aside>
 
       {/* 5. MAIN STAGE */}
       <main 
-        className="absolute z-10 flex items-center justify-center overflow-hidden transition-all duration-500 border rounded-[26px] border-[#2C3A50]/20 bg-[#0A0E1A]/40 backdrop-blur-sm"
-        style={{ left: isSidebarVisible ? '307px' : '25px', top: '25px', right: '25px', bottom: '25px' }}
+        className="absolute z-10 flex items-center justify-center overflow-hidden transition-all duration-500 border rounded-[24px] border-[#2C3A50]/20 bg-[#0A0E1A]/40 backdrop-blur-sm"
+        style={{ left: isSidebarVisible ? '312px' : '24px', top: '24px', right: '24px', bottom: '24px' }}
       >
         {(() => {
           switch (activeVisualization) {
