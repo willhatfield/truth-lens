@@ -6,6 +6,15 @@ interface SynthesisViewProps {
   onOpenVisualizer: (view: string) => void;
 }
 
+// 1. ADDED TYPESCRIPT INTERFACE
+interface SynthesisBlock {
+  id: string;
+  text: string;
+  models: string[];
+  trust: 'VerifiedSafe' | 'CautionUnverified' | 'Rejected';
+  expandedReasoning: string;
+}
+
 // --- MOCK DATA ---
 const SUMMARY_METRICS = {
   trustScore: 94,
@@ -14,7 +23,8 @@ const SUMMARY_METRICS = {
   modelsReachedConsensus: 5
 };
 
-const INITIAL_SYNTHESIS = [
+// 2. TYPED THE INITIAL DATA
+const INITIAL_SYNTHESIS: SynthesisBlock[] = [
   {
     id: 's1',
     text: "Intermittent fasting has been consistently shown to reduce insulin resistance by 15-30% in short-term clinical trials. ",
@@ -81,19 +91,19 @@ const TRUST_COLORS: Record<string, string> = {
 };
 
 export default function SynthesisView({ onOpenVisualizer }: SynthesisViewProps) {
-  // 1. ALL STATES MUST BE INSIDE THE COMPONENT
   const [activeSegment, setActiveSegment] = useState<string | null>(null);
   const [isExpanding, setIsExpanding] = useState(false);
-  const [additionalBlocks, setAdditionalBlocks] = useState<any[]>([]);
+  
+  // 3. TYPED THE STATE (Replaced <any[]> with <SynthesisBlock[]>)
+  const [additionalBlocks, setAdditionalBlocks] = useState<SynthesisBlock[]>([]);
 
-  // We combine the initial text and the expanded text so the Reasoning Panel can find both
   const allSegments = [...INITIAL_SYNTHESIS, ...additionalBlocks];
 
-  // 2. THE HANDLER FUNCTION
   const handleExpandSynthesis = () => {
     setIsExpanding(true);
     setTimeout(() => {
-      const newBlock = {
+      // 4. ENSURED NEW BLOCK MATCHES INTERFACE
+      const newBlock: SynthesisBlock = {
         id: `s${allSegments.length + 1}`,
         text: "Deep Scan Result: Circadian-aligned fasting specifically optimizes the BMAL1 and CLOCK gene expressions, which are the master regulators of cellular insulin sensitivity. This 'genetic priming' distinguishes fasting from simple caloric restriction in clinical outcomes. ",
         models: ['Gemini', 'Claude', 'Kimi'],
@@ -165,7 +175,7 @@ export default function SynthesisView({ onOpenVisualizer }: SynthesisViewProps) 
                   </span>
                 ))}
 
-                {/* 3. THE EXPANDED BLOCKS ARE RENDERED HERE */}
+                {/* THE EXPANDED BLOCKS ARE RENDERED HERE */}
                 <AnimatePresence>
                   {additionalBlocks.map((block) => (
                     <motion.span 
@@ -230,7 +240,8 @@ export default function SynthesisView({ onOpenVisualizer }: SynthesisViewProps) 
                         <div className="pt-3 border-t border-[#2C3A50]/50 flex items-center gap-3">
                           <span className="text-[#588983] text-[10px] font-bold uppercase">Sources:</span>
                           <div className="flex gap-2">
-                            {segment.models.map(m => (
+                            {/* 5. EXPLICITLY TYPED 'm: string' HERE */}
+                            {segment.models.map((m: string) => (
                               <div key={m} className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#121825] border border-[#2C3A50]">
                                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: MODEL_COLORS[m] }} />
                                 <span className="text-[#EBF0FF] text-[9px] uppercase font-bold">{m}</span>
