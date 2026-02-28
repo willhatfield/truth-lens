@@ -21,7 +21,7 @@ if _FRONTEND_ORIGIN:
         allow_origins=[_FRONTEND_ORIGIN],
         allow_credentials=True,
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type", "Authorization"],
+        allow_headers=["*"],
     )
 else:
     app.add_middleware(
@@ -29,7 +29,7 @@ else:
         allow_origins=["*"],
         allow_credentials=False,
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type", "Authorization"],
+        allow_headers=["*"],
     )
 
 ws_manager = WSManager()
