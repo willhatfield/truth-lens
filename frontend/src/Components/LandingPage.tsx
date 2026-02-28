@@ -78,7 +78,7 @@ export default function LandingPage() {
       #90A2B3 100%
     );
     background-size: 300% 300%;
-    animation: waveMove 12s ease-in-out infinite;
+    animation: waveMove 10s ease-in-out infinite;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     filter: brightness(1.05);
@@ -95,7 +95,7 @@ export default function LandingPage() {
       transparent 60%
     );
     background-size: 300% 300%;
-    animation: waveMove 12s ease-in-out infinite;
+    animation: waveMove 10s ease-in-out infinite;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     filter: blur(14px);

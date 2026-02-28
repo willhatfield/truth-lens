@@ -37,11 +37,23 @@ export default function LoadingPage() {
     loadingMessages.length - 1
   );
 
-  // SVG Circle Math for the drawing animation
-  const radius = 150;
-  const circumference = 2 * Math.PI * radius;
-  const drawLength = (percentage / 100) * circumference;
-  const offset = circumference - drawLength;
+  // --- INDIVIDUAL CIRCLE MATH ---
+  const baseRadius = 150;
+  
+  // Layer 1 (Outer Thick Smoke)
+  const r1 = baseRadius + 8;
+  const circ1 = 2 * Math.PI * r1;
+  const offset1 = circ1 - ((percentage / 100) * circ1);
+
+  // Layer 2 (Inner Thin Smoke)
+  const r2 = baseRadius - 6;
+  const circ2 = 2 * Math.PI * r2;
+  const offset2 = circ2 - ((percentage / 100) * circ2);
+
+  // Layer 3 (Core Energy Line)
+  const r3 = baseRadius;
+  const circ3 = 2 * Math.PI * r3;
+  const offset3 = circ3 - ((percentage / 100) * circ3);
 
   return (
     <div className="relative flex flex-col items-center justify-center w-screen h-screen bg-[#0A0E1A] overflow-hidden px-4">
@@ -85,10 +97,8 @@ export default function LoadingPage() {
           {/* SVG Complex Filters & Fluid Rings */}
           <svg width="400" height="400" viewBox="0 0 400 400" className="absolute inset-0 z-10 pointer-events-none overflow-visible">
             <defs>
-              {/* The magical SVG filter that turns lines into organic smoke/fluid */}
               <filter id="fluidSmoke" x="-50%" y="-50%" width="200%" height="200%">
                 <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="4" result="noise">
-                  {/* Animates the noise over time so the smoke continuously morphs */}
                   <animate attributeName="baseFrequency" values="0.015; 0.02; 0.015" dur="15s" repeatCount="indefinite" />
                 </feTurbulence>
                 <feDisplacementMap in="SourceGraphic" in2="noise" scale="35" xChannelSelector="R" yChannelSelector="G" result="displaced" />
@@ -99,13 +109,11 @@ export default function LoadingPage() {
                 </feMerge>
               </filter>
 
-              {/* Softer glow for the inner core line */}
               <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
                 <feGaussianBlur stdDeviation="3" result="blur" />
                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
 
-              {/* Gradient map for the rings */}
               <linearGradient id="bluePlasma" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#FFFFFF" />
                 <stop offset="50%" stopColor="#A9BDE8" />
@@ -114,17 +122,16 @@ export default function LoadingPage() {
             </defs>
 
             {/* Faint background track */}
-            <circle cx="200" cy="200" r={radius} fill="none" stroke="#1A2335" strokeWidth="1" opacity="0.3" />
+            <circle cx="200" cy="200" r={baseRadius} fill="none" stroke="#1A2335" strokeWidth="1" opacity="0.3" />
 
             {/* LAYER 1: Thick, displaced outer smoke (Rotates Clockwise) */}
-            {/* Using Accent Text (#A9BDE8) so the outer aura has a rich blue glow */}
             <motion.g animate={{ rotate: 360 }} transition={{ duration: 40, repeat: Infinity, ease: "linear" }} style={{ originX: '50%', originY: '50%' }}>
               <motion.circle
-                cx="200" cy="200" r={radius + 8}
-                fill="none" stroke="#A9BDE8" strokeWidth="6"
+                cx="200" cy="200" r={r1}
+                fill="none" stroke="#3464c9" strokeWidth="6"
                 strokeLinecap="round"
-                strokeDasharray={circumference}
-                animate={{ strokeDashoffset: offset }}
+                strokeDasharray={circ1}
+                animate={{ strokeDashoffset: offset1 }}
                 transition={{ type: "tween", ease: "easeOut", duration: 0.5 }}
                 filter="url(#fluidSmoke)"
                 opacity={0.5}
@@ -133,14 +140,13 @@ export default function LoadingPage() {
             </motion.g>
 
             {/* LAYER 2: Thinner, displaced inner smoke (Rotates Counter-Clockwise) */}
-            {/* Using Code/Technical (#CCD8FF) for a brighter mid-layer */}
             <motion.g animate={{ rotate: -360 }} transition={{ duration: 30, repeat: Infinity, ease: "linear" }} style={{ originX: '50%', originY: '50%' }}>
               <motion.circle
-                cx="200" cy="200" r={radius - 6}
-                fill="none" stroke="#CCD8FF" strokeWidth="4"
+                cx="200" cy="200" r={r2}
+                fill="none" stroke="#739efa" strokeWidth="4"
                 strokeLinecap="round"
-                strokeDasharray={circumference}
-                animate={{ strokeDashoffset: offset }}
+                strokeDasharray={circ2}
+                animate={{ strokeDashoffset: offset2 }}
                 transition={{ type: "tween", ease: "easeOut", duration: 0.5 }}
                 filter="url(#fluidSmoke)"
                 opacity={0.6}
@@ -149,13 +155,12 @@ export default function LoadingPage() {
             </motion.g>
 
             {/* LAYER 3: The solid, bright core energy line */}
-            {/* Using Primary Text (#EBF0FF) for the sharpest, hottest core */}
             <motion.circle
-              cx="200" cy="200" r={radius}
+              cx="200" cy="200" r={r3}
               fill="none" stroke="#EBF0FF" strokeWidth="2"
               strokeLinecap="round"
-              strokeDasharray={circumference}
-              animate={{ strokeDashoffset: offset }}
+              strokeDasharray={circ3}
+              animate={{ strokeDashoffset: offset3 }}
               transition={{ type: "tween", ease: "easeOut", duration: 0.5 }}
               filter="url(#softGlow)"
               style={{ rotate: "-90deg", originX: '50%', originY: '50%' }}
