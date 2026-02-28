@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ArrowUp } from 'lucide-react';
+import { AnalysisResult } from '../types';
 
 const TRUST_COLORS: Record<string, string> = {
   VerifiedSafe: '#00D68F',
@@ -20,6 +21,7 @@ const MODELS = Object.keys(MODEL_COLORS);
 
 interface HeatmapProps {
   selectedModels: string[];
+  result: AnalysisResult | null;
 }
 
 const generateScatterClaims = () => {
@@ -54,8 +56,28 @@ const generateScatterClaims = () => {
   });
 };
 
-export default function Heatmap({ selectedModels }: HeatmapProps) {
-  const claims = useMemo(() => generateScatterClaims(), []);
+export default function Heatmap({ selectedModels, result }: HeatmapProps) {
+  const claims = useMemo(() => {
+    if (!result) return generateScatterClaims();
+    const { cluster_scores, clusters } = result;
+    return cluster_scores.map((score, idx) => {
+      const cluster = clusters.find(c => c.cluster_id === score.cluster_id);
+      const verdict = score.verdict;
+      const status = verdict === 'SAFE' ? 'VerifiedSafe' : verdict === 'CAUTION' ? 'CautionUnverified' : 'Rejected';
+      const jitterX = (Math.random() - 0.5) * 0.3;
+      const jitterY = (Math.random() - 0.5) * 4;
+      return {
+        id: `cluster-${idx}`,
+        text: cluster?.representative_text ?? score.cluster_id,
+        consensus: score.agreement.count,
+        confidence: Math.round(score.trust_score),
+        status,
+        plotX: Math.min(Math.max(score.agreement.count + jitterX, 1), 5),
+        plotY: Math.min(Math.max(score.trust_score + jitterY, 5), 95),
+        agreedModels: score.agreement.models_supporting,
+      };
+    });
+  }, [result]);
   const [hoveredClaim, setHoveredClaim] = useState<string | null>(null);
 
   const visibleClaims = claims.filter(claim => 

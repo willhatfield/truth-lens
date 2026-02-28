@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ShieldCheck, Activity, ChevronRight, ExternalLink, BrainCircuit, Database, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AnalysisResult } from '../types';
 
 interface SynthesisViewProps {
   onOpenVisualizer: (view: string) => void;
+  result: AnalysisResult | null;
 }
 
 // 1. ADDED TYPESCRIPT INTERFACE
@@ -90,14 +92,60 @@ const TRUST_COLORS: Record<string, string> = {
   Rejected: '#FF4757'
 };
 
-export default function SynthesisView({ onOpenVisualizer }: SynthesisViewProps) {
+export default function SynthesisView({ onOpenVisualizer, result }: SynthesisViewProps) {
   const [activeSegment, setActiveSegment] = useState<string | null>(null);
   const [isExpanding, setIsExpanding] = useState(false);
-  
+
   // 3. TYPED THE STATE (Replaced <any[]> with <SynthesisBlock[]>)
   const [additionalBlocks, setAdditionalBlocks] = useState<SynthesisBlock[]>([]);
 
-  const allSegments = [...INITIAL_SYNTHESIS, ...additionalBlocks];
+  // Derive data from real result, or fall back to mock
+  const derivedSynthesis = useMemo<SynthesisBlock[]>(() => {
+    if (!result) return INITIAL_SYNTHESIS;
+    const { clusters, cluster_scores, claims, safe_answer } = result;
+    const supportedIds = new Set(safe_answer.supported_cluster_ids);
+    return clusters
+      .filter(c => supportedIds.has(c.cluster_id))
+      .map(c => {
+        const score = cluster_scores.find(s => s.cluster_id === c.cluster_id);
+        const verdict = score?.verdict ?? 'SAFE';
+        const trust: SynthesisBlock['trust'] =
+          verdict === 'SAFE' ? 'VerifiedSafe' :
+          verdict === 'CAUTION' ? 'CautionUnverified' : 'Rejected';
+        const modelIds = [...new Set(
+          claims.filter(cl => c.claim_ids.includes(cl.claim_id)).map(cl => cl.model_id)
+        )];
+        return {
+          id: c.cluster_id,
+          text: c.representative_text + ' ',
+          models: modelIds.length > 0 ? modelIds : ['unknown'],
+          trust,
+          expandedReasoning: score
+            ? `Trust score: ${score.trust_score}. ${score.agreement.count} model(s) supporting.`
+            : 'No score data available.',
+        };
+      });
+  }, [result]);
+
+  const derivedMetrics = useMemo(() => {
+    if (!result) return SUMMARY_METRICS;
+    const { claims, nli_results, clusters, cluster_scores } = result;
+    const safeClusters = cluster_scores.filter(s => s.verdict === 'SAFE');
+    const avgTrust = safeClusters.length > 0
+      ? Math.round(safeClusters.reduce((a, s) => a + s.trust_score, 0) / safeClusters.length)
+      : 0;
+    return {
+      trustScore: avgTrust,
+      claimsExtracted: claims.length,
+      sourcesVerified: nli_results.filter(r => r.label === 'entailment').length,
+      modelsReachedConsensus: clusters.filter(c => c.claim_ids.length > 1).length,
+    };
+  }, [result]);
+
+  const displaySynthesis = result ? derivedSynthesis : INITIAL_SYNTHESIS;
+  const displayMetrics = result ? derivedMetrics : SUMMARY_METRICS;
+
+  const allSegments = [...displaySynthesis, ...additionalBlocks];
 
   const handleExpandSynthesis = () => {
     setIsExpanding(true);
@@ -140,7 +188,7 @@ export default function SynthesisView({ onOpenVisualizer }: SynthesisViewProps) 
         <div className="mb-6">
           <span className="text-[#90A2B3] text-[10px] font-bold tracking-[0.2em] uppercase mb-1.5 block">Original Query</span>
           <h1 className="text-[#EBF0FF] text-[22px] font-bold leading-tight">
-            "Is intermittent fasting actually effective for fixing insulin resistance, and does it change your DNA?"
+            "{result ? result.prompt : 'Is intermittent fasting actually effective for fixing insulin resistance, and does it change your DNA?'}"
           </h1>
         </div>
 
@@ -164,7 +212,7 @@ export default function SynthesisView({ onOpenVisualizer }: SynthesisViewProps) 
 
               {/* THE ANSWER CONTENT */}
               <div className="text-[#EBF0FF] text-[15px] leading-relaxed">
-                {INITIAL_SYNTHESIS.map((segment) => (
+                {displaySynthesis.map((segment) => (
                   <span 
                     key={segment.id}
                     onClick={() => setActiveSegment(activeSegment === segment.id ? null : segment.id)}
@@ -264,10 +312,10 @@ export default function SynthesisView({ onOpenVisualizer }: SynthesisViewProps) 
               <div className="relative flex items-center justify-center w-32 h-32 mb-1">
                 <svg className="w-full h-full transform -rotate-90">
                   <circle cx="64" cy="64" r="56" fill="none" stroke="#1A2335" strokeWidth="10" />
-                  <motion.circle cx="64" cy="64" r="56" fill="none" stroke="#00D68F" strokeWidth="10" strokeLinecap="round" strokeDasharray="351.86" initial={{ strokeDashoffset: 351.86 }} animate={{ strokeDashoffset: 351.86 - (351.86 * (SUMMARY_METRICS.trustScore / 100)) }} transition={{ duration: 1.5 }} />
+                  <motion.circle cx="64" cy="64" r="56" fill="none" stroke="#00D68F" strokeWidth="10" strokeLinecap="round" strokeDasharray="351.86" initial={{ strokeDashoffset: 351.86 }} animate={{ strokeDashoffset: 351.86 - (351.86 * (displayMetrics.trustScore / 100)) }} transition={{ duration: 1.5 }} />
                 </svg>
                 <div className="absolute flex flex-col items-center">
-                  <span className="text-[#EBF0FF] text-4xl font-bold">{SUMMARY_METRICS.trustScore}</span>
+                  <span className="text-[#EBF0FF] text-4xl font-bold">{displayMetrics.trustScore}</span>
                   <span className="text-[#00D68F] text-[10px] font-bold uppercase mt-0.5">/ 100</span>
                 </div>
               </div>
@@ -276,15 +324,15 @@ export default function SynthesisView({ onOpenVisualizer }: SynthesisViewProps) 
             <div className="bg-[#121825] border border-[#2C3A50] rounded-xl p-5 shadow-xl space-y-3.5">
               <div className="flex items-center justify-between pb-3.5 border-b border-[#2C3A50]">
                 <div className="flex items-center gap-2 text-[#90A2B3]"><Layers className="w-3.5 h-3.5" /><span className="text-[13px]">Claims Extracted</span></div>
-                <span className="text-[#EBF0FF] text-[13px] font-mono font-bold">{SUMMARY_METRICS.claimsExtracted}</span>
+                <span className="text-[#EBF0FF] text-[13px] font-mono font-bold">{displayMetrics.claimsExtracted}</span>
               </div>
               <div className="flex items-center justify-between pb-3.5 border-b border-[#2C3A50]">
                 <div className="flex items-center gap-2 text-[#90A2B3]"><Database className="w-3.5 h-3.5" /><span className="text-[13px]">Sources Verified</span></div>
-                <span className="text-[#EBF0FF] text-[13px] font-mono font-bold">{SUMMARY_METRICS.sourcesVerified}</span>
+                <span className="text-[#EBF0FF] text-[13px] font-mono font-bold">{displayMetrics.sourcesVerified}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-[#90A2B3]"><Activity className="w-3.5 h-3.5" /><span className="text-[13px]">Consensus Matches</span></div>
-                <span className="text-[#EBF0FF] text-[13px] font-mono font-bold">{SUMMARY_METRICS.modelsReachedConsensus} / 5</span>
+                <span className="text-[#EBF0FF] text-[13px] font-mono font-bold">{displayMetrics.modelsReachedConsensus} / 5</span>
               </div>
             </div>
 

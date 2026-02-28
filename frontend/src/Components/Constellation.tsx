@@ -3,6 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sphere, Line, useCursor, Text, Float } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as THREE from 'three';
+import { AnalysisResult } from '../types';
 
 // --- STYLING CONSTANTS ---
 const TRUST_COLORS: Record<string, string> = {
@@ -253,7 +254,65 @@ function RotatingGroup({ children, isPaused }: { children: React.ReactNode, isPa
   return <group ref={groupRef}>{children}</group>;
 }
 
-export default function Constellation({ selectedModels }: { selectedModels: string[] }) {
+interface ConstellationProps {
+  selectedModels: string[];
+  result: AnalysisResult | null;
+}
+
+export default function Constellation({ selectedModels, result }: ConstellationProps) {
+  // Derive real cluster hub and claim node positions from result
+  const realNodes = useMemo(() => {
+    if (!result) return null;
+    const { clusters, claims, coords3d, cluster_scores } = result;
+
+    const clusterHubs = clusters.map(cluster => {
+      const memberCoords = cluster.claim_ids
+        .map(id => coords3d[id])
+        .filter(Boolean) as [number, number, number][];
+      const centroid: [number, number, number] = memberCoords.length > 0
+        ? [
+            memberCoords.reduce((a, c) => a + c[0], 0) / memberCoords.length,
+            memberCoords.reduce((a, c) => a + c[1], 0) / memberCoords.length,
+            memberCoords.reduce((a, c) => a + c[2], 0) / memberCoords.length,
+          ]
+        : [0, 0, 0];
+      const score = cluster_scores.find(s => s.cluster_id === cluster.cluster_id);
+      const verdict = score?.verdict ?? 'SAFE';
+      const trustStatus: 'VerifiedSafe' | 'CautionUnverified' | 'Rejected' =
+        verdict === 'SAFE' ? 'VerifiedSafe' :
+        verdict === 'CAUTION' ? 'CautionUnverified' : 'Rejected';
+      return {
+        id: cluster.cluster_id,
+        position: centroid,
+        text: cluster.representative_text,
+        isOutlier: cluster.claim_ids.length === 1,
+        trustStatus,
+      };
+    });
+
+    const claimNodes = claims.map(claim => {
+      const pos = coords3d[claim.claim_id] ?? [0, 0, 0] as [number, number, number];
+      const clusterForClaim = clusters.find(c => c.claim_ids.includes(claim.claim_id));
+      const score = clusterForClaim
+        ? cluster_scores.find(s => s.cluster_id === clusterForClaim.cluster_id)
+        : undefined;
+      const verdict = score?.verdict ?? 'SAFE';
+      const trustStatus: 'VerifiedSafe' | 'CautionUnverified' | 'Rejected' =
+        verdict === 'SAFE' ? 'VerifiedSafe' :
+        verdict === 'CAUTION' ? 'CautionUnverified' : 'Rejected';
+      return {
+        id: claim.claim_id,
+        position: pos,
+        model: claim.model_id,
+        trustStatus,
+        text: claim.claim_text,
+        clusterId: clusterForClaim?.cluster_id ?? null,
+      };
+    });
+
+    return { clusterHubs, claimNodes };
+  }, [result]);
+
   const { nodes, clusters } = useMemo(() => generateGraphData(), []);
   const [activeNode, setActiveNode] = useState<ClaimNode | null>(null);
 

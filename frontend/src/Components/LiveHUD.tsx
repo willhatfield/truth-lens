@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Activity, ShieldCheck, Database, Zap, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AnalysisResult } from '../types';
 
-export default function LiveHUD() {
+export default function LiveHUD({ result }: { result: AnalysisResult | null }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [claims, setClaims] = useState(142);
   const [entropy, setEntropy] = useState(1.24);
@@ -90,7 +91,7 @@ export default function LiveHUD() {
                     <Database className="w-4 h-4 text-[#A9BDE8]" />
                     <div className="flex flex-col">
                       <span className="text-[#5E6E81] text-[8px] font-bold tracking-widest uppercase">Claims Extracted</span>
-                      <span className="text-[#EBF0FF] text-sm font-mono font-semibold leading-tight drop-shadow-md">{claims}</span>
+                      <span className="text-[#EBF0FF] text-sm font-mono font-semibold leading-tight drop-shadow-md">{result ? result.claims.length : claims}</span>
                     </div>
                   </div>
 
@@ -99,7 +100,11 @@ export default function LiveHUD() {
                     <ShieldCheck className="w-4 h-4 text-[#00D68F]" />
                     <div className="flex flex-col">
                       <span className="text-[#5E6E81] text-[8px] font-bold tracking-widest uppercase">Verification Rate</span>
-                      <span className="text-[#00D68F] text-sm font-mono font-semibold leading-tight drop-shadow-[0_0_8px_rgba(0,214,143,0.4)]">84.2%</span>
+                      <span className="text-[#00D68F] text-sm font-mono font-semibold leading-tight drop-shadow-[0_0_8px_rgba(0,214,143,0.4)]">
+                        {result
+                          ? `${Math.round((result.cluster_scores.filter(s => s.verdict === 'SAFE').length / Math.max(result.cluster_scores.length, 1)) * 100)}%`
+                          : '84.2%'}
+                      </span>
                     </div>
                   </div>
 
