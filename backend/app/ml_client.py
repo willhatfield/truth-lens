@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 import httpx
 
@@ -29,7 +29,8 @@ def _ml_auth_headers() -> dict[str, str]:
 async def run_ml_pipeline(
     analysis_id: str,
     model_outputs: list[dict[str, str]],
-    passages_by_claim: dict[str, list[dict[str, str]]] | None = None,
+    passages_by_claim: dict | None = None,
+    publish: PublishFn | None = None,
 ) -> dict[str, Any]:
     filtered_responses = []
     for item in model_outputs:
@@ -46,115 +47,63 @@ async def run_ml_pipeline(
     if not filtered_responses:
         return {"warnings": ["ml pipeline skipped: no non-empty model responses"]}
 
-    extract_payload = {
-        "schema_version": SCHEMA_VERSION,
-        "analysis_id": analysis_id,
-        "responses": filtered_responses,
-    }
-    extract = await _post("extract_claims", extract_payload)
-    claims = extract.get("claims", []) or []
-    if not claims:
-        return {"extract_claims": extract, "warnings": ["no claims extracted"]}
+    base_url = _ml_service_url()
+    headers = _ml_auth_headers()
 
-    embed_payload = {
-        "schema_version": SCHEMA_VERSION,
-        "analysis_id": analysis_id,
-        "claims": [
-            {
-                "claim_id": str(c.get("claim_id", "")),
-                "claim_text": str(c.get("claim_text", "")),
-            }
-            for c in claims
-            if c.get("claim_id")
-        ],
-    }
-    embed = await _post("embed_claims", embed_payload)
-    vectors = embed.get("vectors", {}) or {}
-    if not vectors:
-        return {
-            "extract_claims": extract,
-            "embed_claims": embed,
-            "warnings": ["embedding produced no vectors"],
-        }
-
-    claims_map = _claim_metadata_map(claims)
-
-    cluster_payload = {
-        "schema_version": SCHEMA_VERSION,
-        "analysis_id": analysis_id,
-        "vectors": vectors,
-        "claims": claims_map,
-        "sim_threshold": 0.85,
-    }
-    umap_payload = {
-        "schema_version": SCHEMA_VERSION,
-        "analysis_id": analysis_id,
-        "vectors": vectors,
-    }
-
-    cluster_task = _post("cluster_claims", cluster_payload)
-    umap_task = _post("compute_umap", umap_payload)
-    cluster, umap = await asyncio.gather(cluster_task, umap_task)
-
-    # If retrieval is not wired yet, run with empty evidence lists (valid but less useful).
-    passages_by_claim = passages_by_claim or {}
-    rerank_items = []
-    for c in claims:
-        cid = str(c.get("claim_id", ""))
-        if not cid:
-            continue
-        passages = _normalize_passages(passages_by_claim.get(cid, []), cid)
-        rerank_items.append(
-            {
-                "claim_id": cid,
-                "claim_text": str(c.get("claim_text", "")),
-                "passages": passages,
-            }
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        start_resp = await client.post(
+            f"{base_url}/pipeline/run",
+            headers=headers,
+            json={
+                "analysis_id": analysis_id,
+                "prompt": "",
+                "model_outputs": filtered_responses,
+            },
         )
+        start_resp.raise_for_status()
+        start_data = start_resp.json()
 
-    rerank_payload = {
-        "schema_version": SCHEMA_VERSION,
-        "analysis_id": analysis_id,
-        "items": rerank_items,
-        "top_k": 10,
-    }
-    rerank = await _post("rerank_evidence_batch", rerank_payload)
+    status = start_data.get("status", "")
+    if status == "done":
+        result = start_data.get("result")
+        return result if result is not None else {}
+    if status == "error":
+        error = start_data.get("error", "unknown ml error")
+        return {"warnings": [f"ml pipeline error: {error}"]}
 
-    nli_pairs = _build_pairs(
-        claims,
-        rerank.get("rankings", []) or [],
-        rerank_items,
-    )
-    nli = {"results": [], "warnings": ["nli skipped: no claim/passage pairs"]}
-    if nli_pairs:
-        nli_payload = {
-            "schema_version": SCHEMA_VERSION,
-            "analysis_id": analysis_id,
-            "pairs": nli_pairs,
-            "batch_size": 16,
-        }
-        nli = await _post("nli_verify_batch", nli_payload)
+    seen_stages: list[str] = list(start_data.get("stages_completed", []) or [])
+    max_polls = 240
+    poll_count = 0
 
-    score_payload = {
-        "schema_version": SCHEMA_VERSION,
-        "analysis_id": analysis_id,
-        "clusters": cluster.get("clusters", []) or [],
-        "claims": claims_map,
-        "nli_results": nli.get("results", []) or [],
-    }
-    score = await _post("score_clusters", score_payload)
+    while poll_count < max_polls:
+        await asyncio.sleep(5)
+        poll_count += 1
 
-    warnings = []
-    for block in (extract, embed, cluster, rerank, nli, umap, score):
-        warnings.extend(block.get("warnings", []) or [])
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            poll_resp = await client.get(
+                f"{base_url}/pipeline/{analysis_id}",
+                headers=headers,
+            )
+            poll_resp.raise_for_status()
+            poll_data = poll_resp.json()
 
-    return {
-        "extract_claims": extract,
-        "embed_claims": embed,
-        "cluster_claims": cluster,
-        "rerank_evidence_batch": rerank,
-        "nli_verify_batch": nli,
-        "compute_umap": umap,
-        "score_clusters": score,
-        "warnings": warnings,
-    }
+        current_stages = list(poll_data.get("stages_completed", []) or [])
+        if publish is not None and len(current_stages) > len(seen_stages):
+            for stage in current_stages[len(seen_stages):]:
+                envelope = EventEnvelope(
+                    analysis_id=analysis_id,
+                    type="STAGE_PROGRESS",
+                    payload={"stage": stage},
+                )
+                await publish(analysis_id, envelope.model_dump())
+        seen_stages = current_stages
+
+        poll_status = poll_data.get("status", "")
+        if poll_status == "done":
+            result = poll_data.get("result")
+            return result if result is not None else {}
+        if poll_status == "error":
+            error = poll_data.get("error", "unknown ml error")
+            return {"warnings": [f"ml pipeline error: {error}"]}
+
+    return {"warnings": ["ml pipeline timed out after 1200s"]}
