@@ -15,27 +15,27 @@ import time
 import urllib.request
 import urllib.error
 
-from mock_data import build_full_pipeline_data
+from e2e_request_builders import build_request, CHAIN_DEPS, VALID_BUILDER_KEYS
 
 DEFAULT_WORKSPACE = "willhatfield"
 DEFAULT_APP_NAME = "truthlens-ml"
 
-# Phase definitions: (name, endpoint_path, request_key, response_fields)
+# Phase definitions: (name, endpoint_path, builder_key, response_fields)
 PHASES = [
     ("extract_claims", "http_extract_claims",
-     "extract_request", ["claims"]),
+     "extract", ["claims"]),
     ("embed_claims", "http_embed_claims",
-     "embed_request", ["vectors", "dim"]),
+     "embed", ["vectors", "dim"]),
     ("cluster_claims", "http_cluster_claims",
-     "cluster_request", ["clusters"]),
+     "cluster", ["clusters"]),
     ("rerank_evidence_batch", "http_rerank_evidence_batch",
-     "rerank_request", ["rankings"]),
+     "rerank", ["rankings"]),
     ("nli_verify_batch", "http_nli_verify_batch",
-     "nli_request", ["results"]),
+     "nli", ["results"]),
     ("compute_umap", "http_compute_umap",
-     "umap_request", ["coords3d"]),
+     "umap", ["coords3d"]),
     ("score_clusters", "http_score_clusters",
-     "score_request", ["scores"]),
+     "score", ["scores"]),
 ]
 
 MAX_PHASES = 10
@@ -89,6 +89,37 @@ def _send_request(
         return (0, {"error": str(exc)}, elapsed)
 
 
+MAX_RESP_FIELDS = 20
+
+
+def _validate_response_fields(data: dict, resp_fields: list) -> tuple:
+    """Check that all expected fields exist in *data*.
+
+    Returns (is_valid, detail_str).  If any field in resp_fields is
+    missing, returns (False, "MISSING: field1, field2, ...").
+    """
+    missing = []
+    for i in range(len(resp_fields)):
+        if i >= MAX_RESP_FIELDS:
+            break
+        if resp_fields[i] not in data:
+            missing.append(resp_fields[i])
+    if len(missing) > 0:
+        return (False, "MISSING: " + ", ".join(missing))
+    return (True, "")
+
+
+def _is_chained(builder_key: str, responses: dict) -> bool:
+    """Return True if all upstream deps for *builder_key* are present."""
+    deps = CHAIN_DEPS.get(builder_key, [])
+    if len(deps) == 0:
+        return True
+    for i in range(len(deps)):
+        if deps[i] not in responses:
+            return False
+    return True
+
+
 def _print_summary(results: list) -> None:
     """Print formatted summary table of all phase results."""
     print("\n" + "=" * 70)
@@ -102,9 +133,13 @@ def _print_summary(results: list) -> None:
             break
         name, status, elapsed, detail = results[i]
         total_time += elapsed
-        status_str = "OK" if status == 200 else f"ERR {status}"
         if status == 200:
+            status_str = "OK"
             pass_count += 1
+        elif status == -1:
+            status_str = "FIELDS"
+        else:
+            status_str = f"ERR {status}"
         print(f"  {name:<23} {status_str:<8} {elapsed:>7.2f}s  {detail}")
 
     print("-" * 70)
@@ -122,24 +157,40 @@ def run_e2e(workspace: str, app_name: str, api_key: str) -> int:
     print(f"API Key:   {'*' * 4}{api_key[-4:]}")
     print()
 
-    pipeline_data = build_full_pipeline_data()
+    collected_responses = {}
     results = []
 
     for i in range(len(PHASES)):
         if i >= MAX_PHASES:
             break
-        name, endpoint, req_key, resp_fields = PHASES[i]
+        name, endpoint, builder_key, resp_fields = PHASES[i]
         url = _build_url(workspace, app_name, endpoint)
-        payload = pipeline_data[req_key]
+        payload = build_request(builder_key, collected_responses)
 
-        print(f"[{i + 1}/{len(PHASES)}] {name}...", end=" ", flush=True)
+        chained = _is_chained(builder_key, collected_responses)
+        tag = "[chained]" if chained else "[mock]"
+        print(
+            f"[{i + 1}/{len(PHASES)}] {name} {tag}...",
+            end=" ",
+            flush=True,
+        )
         status, data, elapsed = _send_request(url, payload, api_key)
 
+        detail = ""
         if status == 200:
-            detail_parts = []
-            for j in range(len(resp_fields)):
-                field = resp_fields[j]
-                if field in data:
+            valid, field_detail = _validate_response_fields(
+                data, resp_fields,
+            )
+            if not valid:
+                status = -1
+                detail = field_detail
+                print(f"FIELDS ({elapsed:.2f}s) - {detail}")
+            else:
+                detail_parts = []
+                for j in range(len(resp_fields)):
+                    if j >= MAX_RESP_FIELDS:
+                        break
+                    field = resp_fields[j]
                     val = data[field]
                     if isinstance(val, list):
                         detail_parts.append(f"{field}={len(val)}")
@@ -147,8 +198,9 @@ def run_e2e(workspace: str, app_name: str, api_key: str) -> int:
                         detail_parts.append(f"{field}={len(val)}")
                     else:
                         detail_parts.append(f"{field}={val}")
-            detail = ", ".join(detail_parts)
-            print(f"OK ({elapsed:.2f}s) - {detail}")
+                detail = ", ".join(detail_parts)
+                print(f"OK ({elapsed:.2f}s) - {detail}")
+                collected_responses[name] = data
         else:
             detail = str(data.get("error", ""))[:80]
             print(f"FAILED ({status}) - {detail}")

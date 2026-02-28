@@ -11,6 +11,7 @@ from e2e_modal_test import (
     DEFAULT_WORKSPACE,
     DEFAULT_APP_NAME,
 )
+from e2e_request_builders import VALID_BUILDER_KEYS
 
 
 class TestPhaseConfiguration:
@@ -38,6 +39,13 @@ class TestPhaseConfiguration:
         for i in range(len(PHASES)):
             assert PHASES[i][1].startswith("http_"), (
                 f"Phase {PHASES[i][0]} endpoint should start with http_"
+            )
+
+    def test_builder_keys_are_valid(self):
+        for i in range(len(PHASES)):
+            builder_key = PHASES[i][2]
+            assert builder_key in VALID_BUILDER_KEYS, (
+                f"Phase {PHASES[i][0]} has unknown builder key '{builder_key}'"
             )
 
 
