@@ -4,8 +4,15 @@ Validates app registration, GPU/CPU assignments, memory, volumes,
 image configuration, and server connectivity for all 7 Modal functions.
 """
 
+import os
+
 import pytest
 import modal
+
+HAS_MODAL_CREDS = (
+    os.environ.get("MODAL_TOKEN_ID") is not None
+    and os.environ.get("MODAL_TOKEN_SECRET") is not None
+)
 
 from modal_app import (
     app,
@@ -167,6 +174,10 @@ class TestFunctionsCallable:
 # -- Modal server connectivity -----------------------------------------------
 
 @pytest.mark.modal_server
+@pytest.mark.skipif(
+    not HAS_MODAL_CREDS,
+    reason="Modal credentials not configured",
+)
 class TestModalServerConnectivity:
     """Tests that require a live connection to Modal's servers.
 
@@ -180,9 +191,10 @@ class TestModalServerConnectivity:
 
     @pytest.mark.parametrize("name", EXPECTED_FUNCTIONS)
     def test_function_reference_creates(self, name):
-        """Modal can create a lazy reference for each function."""
+        """Modal can create and hydrate a reference for each function."""
         fn_ref = modal.Function.from_name("truthlens-ml", name)
-        assert fn_ref is not None
+        fn_ref.hydrate()
+        assert fn_ref.object_id is not None
 
     @pytest.mark.parametrize("name", EXPECTED_FUNCTIONS)
     def test_build_def_is_valid(self, name):
@@ -192,9 +204,10 @@ class TestModalServerConnectivity:
         assert len(build_def) > 0
 
     def test_volume_reference_creates(self):
-        """Volume reference creates without error."""
+        """Volume reference creates and hydrates without error."""
         vol = modal.Volume.from_name("truthlens-model-cache")
-        assert vol is not None
+        vol.hydrate()
+        assert vol.object_id is not None
 
     def test_source_modules_in_mounts(self):
         """GPU and CPU functions include local source mounts."""
