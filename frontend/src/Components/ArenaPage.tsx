@@ -7,7 +7,6 @@ import Heatmap from './Heatmap';
 import KnowledgeDeck from './KnowledgeDeck';
 import Pipeline from './Pipeline';
 import EvidenceNetwork from './EvidenceNetwork';
-import LiveHUD from './LiveHUD';
 import SynthesisView from './SynthesisView';
 
 // --- MOCK HISTORY DATA ---
@@ -75,7 +74,6 @@ export default function ArenaPage() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#0A0E1A] text-[#EBF0FF]">
-      <LiveHUD />
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
