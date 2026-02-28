@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  /* Background & Surface Colors (Row 1) */
+  --color-deep-bg: #0A0E1A; 
+  --color-panel-bg: #121825; 
+  --color-elevated: #1A2335; 
+  --color-border: #2C3A50; 
+  --color-border-light: #586983;
+
+  /* Inputs & Text Colors (Row 2) */
+  --color-input: #161D2E;
+  --color-text-primary: #EBF0FF; 
+  --color-text-secondary: #90A2B3; 
+  --color-text-accent: #A9BDE8; 
+  --color-text-code: #CCD8FF; 
+
+  /* Model Identity Colors (Row 3) */
+  /* Assign these to GPT-4, Gemini, Claude, Llama 3, and Kimi however you mapped them! */
+  --color-model-1: #10A37F; /* Teal */
+  --color-model-2: #428F54; /* Green */
+  --color-model-3: #E8825A; /* Coral */
+  --color-model-4: #A8555F; /* Mauve */
+  --color-model-5: #5273FB; /* Blue */
+
+  /* Trust Status & Neutral Colors (Row 4) */
+  --color-status-verified: #00D68F; 
+  --color-status-caution: #FFB020; 
+  --color-status-rejected: #FF4757; 
+  --color-status-opinion: #7D8BAF; 
+  --color-status-neutral: #404A60; 
+}
+
+body {
+  background-color: var(--color-deep-bg);
+  color: var(--color-text-primary);
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
