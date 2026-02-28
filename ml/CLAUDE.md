@@ -7,4 +7,4 @@ Restrict all code to very simple control flow constructs—do not use goto state
 Any componenents that might be reused accross different files should be created in their own file.
 
 In a seperate subfolder called ClaudeProgress, save a .MD file for changes made, bugs encountered, and next steps for the
- next agent to follow up on
+ next agent to follow up on. Ensure the agent reads the most recent one of these, and if more specification is needed, read further.
