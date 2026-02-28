@@ -175,7 +175,7 @@ class BaseRequest(BaseModel):
 
 class BaseResponse(BaseModel):
     schema_version: str = Field(default="1.0")
-    analysis_id: str = Field(default="")
+    analysis_id: str = Field(..., min_length=1)
     warnings: List[str] = Field(default_factory=list)
 ```
 
@@ -520,7 +520,7 @@ For each cluster in `req.clusters` (bounded loop):
 2. `agreement_score = compute_agreement_score(len(supporting_models), total_models=5)`
 3. `best_entailment, best_contradiction, evidence_passage_id = find_best_nli_for_cluster(cluster.claim_ids, req.nli_results)`
 4. `verification_score = compute_verification_score(best_entailment, best_contradiction)`
-5. `trust_score = compute_trust_score(agreement_score, verification_score, weights)`
+5. `trust_score = compute_trust_score(agreement_score, verification_score, weights.agreement_weight, weights.verification_weight)`
 6. `verdict = determine_verdict(trust_score, best_contradiction, thresholds)`
 7. Build `ClusterScore` object
 
