@@ -129,6 +129,10 @@ class TestTryParseScore:
         raw = {"cluster_id": "c1", "trust_score": 80, "verdict": ""}
         assert _try_parse_score(raw) is None
 
+    def test_unknown_verdict(self):
+        raw = {"cluster_id": "c1", "trust_score": 80, "verdict": "UNKNOWN"}
+        assert _try_parse_score(raw) is None
+
     def test_non_dict_input(self):
         assert _try_parse_score("not a dict") is None
         assert _try_parse_score(None) is None
@@ -580,6 +584,21 @@ class TestBuildSafeAnswer:
         assert any("malformed score" in w.lower() for w in warns)
         assert "good" in sa["text"]
 
+    def test_unknown_verdict_skipped_as_malformed_score(self):
+        clusters = [
+            _make_cluster("c1", "safe claim"),
+            _make_cluster("c2", "unknown verdict claim"),
+        ]
+        scores = [
+            _make_score("c1", 90, "SAFE"),
+            _make_score("c2", 85, "UNKNOWN"),
+        ]
+        sa, warns = build_safe_answer(clusters, scores)
+        assert sa["supported_cluster_ids"] == ["c1"]
+        assert sa["rejected_cluster_ids"] == []
+        assert "unknown verdict claim" not in sa["text"]
+        assert any("malformed score" in w.lower() for w in warns)
+
     def test_duplicate_cluster_deduped_with_warning(self):
         clusters = [
             _make_cluster("c1", "short"),
@@ -608,6 +627,20 @@ class TestBuildSafeAnswer:
             scores.append(_make_score(cid, max(0, 100 - i), "SAFE"))
         sa, warns = build_safe_answer(clusters, scores)
         assert any("truncated" in w.lower() for w in warns)
+
+    def test_filter_missing_cluster_ids_before_truncation(self):
+        clusters = [_make_cluster("c_valid", "valid claim")]
+        scores = [
+            _make_score(f"c_missing_{i}", 100, "SAFE")
+            for i in range(_MAX_CLUSTERS + 1)
+        ]
+        scores.append(_make_score("c_valid", 1, "SAFE"))
+
+        sa, warns = build_safe_answer(clusters, scores)
+
+        assert sa["supported_cluster_ids"] == ["c_valid"]
+        assert "valid claim" in sa["text"]
+        assert not any("truncated" in w.lower() for w in warns)
 
     def test_empty_inputs_fallback(self):
         sa, warns = build_safe_answer([], [])

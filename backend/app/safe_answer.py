@@ -32,6 +32,7 @@ class _ScoreData:
 # ---------------------------------------------------------------------------
 
 _VERDICT_ORDER = {"SAFE": 0, "CAUTION": 1, "REJECT": 2}
+_ALLOWED_VERDICTS = set(_VERDICT_ORDER)
 _MAX_CLUSTERS = 1000  # Aligned with ml/modal_app.py
 _MAX_INPUT = 10000    # Upper bound for parse/dedup loops
 
@@ -88,7 +89,7 @@ def _try_parse_score(raw):
             return None
         if ts < 0 or ts > 100:
             return None
-        if not isinstance(verdict, str) or not verdict:
+        if not isinstance(verdict, str) or verdict not in _ALLOWED_VERDICTS:
             return None
         return _ScoreData(cluster_id=cid, trust_score=ts, verdict=verdict)
     except Exception:
@@ -319,6 +320,9 @@ def build_safe_answer(clusters, cluster_scores, *, rewrite_client=None):
         # -- Sort --
         ordered = _sorted_scores(deduped_scores)
 
+        # -- Filter to scores that still have a matching cluster --
+        ordered = [s for s in ordered if s.cluster_id in cluster_index]
+
         # -- Cap --
         if len(ordered) > _MAX_CLUSTERS:
             warnings.append(
@@ -326,13 +330,11 @@ def build_safe_answer(clusters, cluster_scores, *, rewrite_client=None):
             )
             ordered = ordered[:_MAX_CLUSTERS]
 
-        # -- Derive ID lists (filtered to cluster_index keys) --
+        # -- Derive ID lists --
         supported = []
         rejected = []
         for i in range(len(ordered)):
             s = ordered[i]
-            if s.cluster_id not in cluster_index:
-                continue
             if s.verdict == "SAFE":
                 supported.append(s.cluster_id)
             elif s.verdict == "REJECT":
