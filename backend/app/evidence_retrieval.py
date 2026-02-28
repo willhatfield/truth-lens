@@ -1,6 +1,8 @@
 import asyncio
+import logging
 from hashlib import sha1
 from typing import Any
+logger = logging.getLogger(__name__)
 
 
 async def retrieve_evidence(
@@ -37,7 +39,23 @@ async def retrieve_evidence(
             return claim_id, passages
 
         tasks = [_fetch_one(c) for c in claims]
-        pairs = await asyncio.gather(*tasks)
-        return {cid: passages for cid, passages in pairs if cid}
+        try:
+            pairs = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            for item in pairs:
+                if isinstance(item, Exception):
+                    logger.error(f"A DuckDuckGo search task failed: {item}")
+
+            return {
+                cid: passages
+                for item in pairs
+                if isinstance(item, tuple)
+                for cid, passages in [item]
+                if cid
+            }
+
+        except Exception as e:
+            logger.exception(f"Unexpected error during concurrent evidence retrieval: {e}")
+            return {}
     except Exception:
         return {}

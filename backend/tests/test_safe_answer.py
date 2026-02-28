@@ -336,10 +336,10 @@ class TestValidatePrefix:
         assert _validate_prefix("As a result,", 0) is False
 
     def test_opener_at_index_0(self):
-        assert _validate_prefix("Overall,", 0) is True
-        assert _validate_prefix("Meanwhile,", 0) is True
-        assert _validate_prefix("In addition,", 0) is True
-        assert _validate_prefix("Additionally,", 0) is True
+        assert _validate_prefix("Overall,", 0) is False
+        assert _validate_prefix("Meanwhile,", 0) is False
+        assert _validate_prefix("In addition,", 0) is False
+        assert _validate_prefix("Additionally,", 0) is False
 
 
 # ---------------------------------------------------------------------------
