@@ -1,0 +1,284 @@
+import { useState } from 'react';
+import { ShieldCheck, Activity, ChevronRight, ExternalLink, BrainCircuit, Database, Layers } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface SynthesisViewProps {
+  onOpenVisualizer: (view: string) => void;
+}
+
+// --- MOCK DATA ---
+const SUMMARY_METRICS = {
+  trustScore: 94,
+  claimsExtracted: 32,
+  sourcesVerified: 18,
+  modelsReachedConsensus: 5
+};
+
+const INITIAL_SYNTHESIS = [
+  {
+    id: 's1',
+    text: "Intermittent fasting has been consistently shown to reduce insulin resistance by 15-30% in short-term clinical trials. ",
+    models: ['Chat', 'Gemini', 'Claude'],
+    trust: 'VerifiedSafe',
+    expandedReasoning: "3 models strongly agreed on this claim. Cross-referenced with 4 medical journals including NEJM, showing exact statistical alignment."
+  },
+  {
+    id: 's2',
+    text: "It achieves this primarily by aligning nutrient intake with natural circadian rhythms, allowing pancreatic cells to rest. ",
+    models: ['Gemini', 'Kimi'],
+    trust: 'VerifiedSafe',
+    expandedReasoning: "Extracted primarily from Gemini's biomedical reasoning and verified against the Salk Institute circadian rhythm studies."
+  },
+  {
+    id: 's3',
+    text: "Clinical data suggests that the metabolic switch to ketone utilization during the fasting window further stabilizes blood glucose levels. ",
+    models: ['Llama 3', 'Claude', 'Gemini'],
+    trust: 'VerifiedSafe',
+    expandedReasoning: "Consensus reached on the 'metabolic switch' mechanism. Verified against Johns Hopkins metabolic research papers (2023)."
+  },
+  {
+    id: 's4',
+    text: "Furthermore, cellular autophagy—the process of clearing damaged proteins—is significantly upregulated after 16 hours of fasting. ",
+    models: ['Gemini', 'Kimi', 'Chat'],
+    trust: 'VerifiedSafe',
+    expandedReasoning: "High-confidence claim. All three models mapped this to the 16:8 protocol with 98% semantic overlap in biological pathways."
+  },
+  {
+    id: 's5',
+    text: "While early results are promising, long-term effectiveness compared to standard caloric restriction remains a point of active debate. ",
+    models: ['Chat', 'Claude', 'Llama 3', 'Gemini', 'Kimi'],
+    trust: 'CautionUnverified',
+    expandedReasoning: "All 5 models noted this nuance. The evidence network found conflicting longitudinal data, marking it as a 'Debated' topic."
+  },
+  {
+    id: 's6',
+    text: "Individuals with high baseline cortisol should exercise caution, as fasting can occasionally trigger an acute stress response. ",
+    models: ['Claude', 'Llama 3'],
+    trust: 'VerifiedSafe',
+    expandedReasoning: "Sourced from endocrinology-specific datasets. Verified as a legitimate safety boundary for hormonal dysregulation."
+  },
+  {
+    id: 's7',
+    text: "Ultimately, the primary driver of success in reversing insulin resistance is the sustained reduction in liver fat through adherence. ",
+    models: ['Gemini', 'Chat', 'Kimi', 'Claude'],
+    trust: 'VerifiedSafe',
+    expandedReasoning: "Strong consensus. Models cross-referenced the 'Twin Cycles' hypothesis of diabetes reversal with 4 peer-reviewed sources."
+  }
+];
+
+const MODEL_COLORS: Record<string, string> = {
+  'Chat': '#10A37F',
+  'Gemini': '#428F54',
+  'Claude': '#E8825A',
+  'Llama 3': '#A8555F',
+  'Kimi': '#5273FB'
+};
+
+const TRUST_COLORS: Record<string, string> = {
+  VerifiedSafe: '#00D68F',
+  CautionUnverified: '#FFB020',
+  Rejected: '#FF4757'
+};
+
+export default function SynthesisView({ onOpenVisualizer }: SynthesisViewProps) {
+  const [activeSegment, setActiveSegment] = useState<string | null>(null);
+  const [isExpanding, setIsExpanding] = useState(false);
+  const [additionalBlocks, setAdditionalBlocks] = useState<any[]>([]);
+
+  const allSegments = [...INITIAL_SYNTHESIS, ...additionalBlocks];
+
+  const handleExpandSynthesis = () => {
+    setIsExpanding(true);
+    setTimeout(() => {
+      const newBlock = {
+        id: `s${allSegments.length + 1}`,
+        text: "Circadian-aligned fasting specifically optimizes the BMAL1 and CLOCK gene expressions, which are the master regulators of cellular insulin sensitivity. This 'genetic priming' distinguishes fasting from simple caloric restriction in clinical outcomes. ",
+        models: ['Gemini', 'Claude', 'Kimi'],
+        trust: 'VerifiedSafe',
+        expandedReasoning: "Cross-verified across 3 genomic studies. High semantic alignment between Gemini's biological summary and Claude's clinical analysis regarding BMAL1 pathways."
+      };
+      setAdditionalBlocks(prev => [...prev, newBlock]);
+      setIsExpanding(false);
+    }, 1200);
+  };
+
+  const getHighlightStyle = (models: string[], isActive: boolean) => {
+    if (models.length === 1) {
+      const color = MODEL_COLORS[models[0]];
+      return {
+        backgroundColor: isActive ? `${color}40` : `${color}15`, 
+        borderBottom: `2px solid ${color}`
+      };
+    }
+    return {
+      background: isActive 
+        ? `linear-gradient(90deg, ${models.map(m => `${MODEL_COLORS[m]}40`).join(', ')})`
+        : `linear-gradient(90deg, ${models.map(m => `${MODEL_COLORS[m]}15`).join(', ')})`,
+      borderImage: `linear-gradient(90deg, ${models.map(m => MODEL_COLORS[m]).join(', ')}) 1`,
+      borderBottom: '2px solid'
+    };
+  };
+
+  return (
+    <div className="flex flex-col w-full h-full p-6 overflow-y-auto no-scrollbar bg-[#0A0E1A]">
+      <div className="max-w-[960px] mx-auto w-full space-y-5">
+        
+        {/* HEADER */}
+        <div className="mb-6">
+          <span className="text-[#90A2B3] text-[10px] font-bold tracking-[0.2em] uppercase mb-1.5 block">Original Query</span>
+          <h1 className="text-[#EBF0FF] text-[22px] font-bold leading-tight">
+            "Is intermittent fasting actually effective for fixing insulin resistance, and does it change your DNA?"
+          </h1>
+        </div>
+
+        <div className="grid grid-cols-12 gap-5">
+          
+          {/* LEFT COLUMN */}
+          <div className="col-span-8 space-y-5">
+            <div className="bg-[#121825] border border-[#2C3A50] rounded-xl p-6 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#10A37F] via-[#00D68F] to-[#5273FB]" />
+
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-[#EBF0FF] text-lg font-bold flex items-center gap-2">
+                  <BrainCircuit className="w-4 h-4 text-[#A9BDE8]" />
+                  Synthesized Safe Answer
+                </h2>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#1A2335] border border-[#2C3A50] rounded-full">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#00D68F]" />
+                  <span className="text-[#00D68F] text-[10px] font-bold tracking-widest uppercase">Verified Consensus</span>
+                </div>
+              </div>
+
+              {/* THE ANSWER CONTENT */}
+              <div className="text-[#EBF0FF] text-[15px] leading-relaxed">
+                {INITIAL_SYNTHESIS.map((segment) => (
+                  <span 
+                    key={segment.id}
+                    onClick={() => setActiveSegment(activeSegment === segment.id ? null : segment.id)}
+                    className="cursor-pointer transition-all duration-300 rounded-sm px-1 mr-1"
+                    style={getHighlightStyle(segment.models, activeSegment === segment.id)}
+                  >
+                    {segment.text}
+                  </span>
+                ))}
+
+                <AnimatePresence>
+                  {additionalBlocks.map((block) => (
+                    <motion.span 
+                      key={block.id}
+                      initial={{ opacity: 0, x: -5 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      onClick={() => setActiveSegment(activeSegment === block.id ? null : block.id)}
+                      className="cursor-pointer transition-all duration-300 rounded-sm px-1 mr-1 border-l border-[#588983]/50"
+                      style={getHighlightStyle(block.models, activeSegment === block.id)}
+                    >
+                      {block.text}
+                    </motion.span>
+                  ))}
+                </AnimatePresence>
+              </div>
+
+              {/* ACTION BAR */}
+              <div className="mt-8 pt-6 border-t border-[#2C3A50]/50 flex items-center justify-between">
+                <button 
+                  onClick={handleExpandSynthesis}
+                  disabled={isExpanding}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-[#1A2335] hover:bg-[#1E293B] border border-[#588983]/30 hover:border-[#588983]/60 rounded-lg transition-all group disabled:opacity-50"
+                >
+                  {isExpanding ? <Activity className="w-3.5 h-3.5 text-[#588983] animate-spin" /> : <Layers className="w-3.5 h-3.5 text-[#588983]" />}
+                  <span className="text-[#EBF0FF] text-xs font-bold uppercase tracking-wider">
+                    {isExpanding ? "Deep Scanning..." : "Expand Synthesis"}
+                  </span>
+                </button>
+                <span className="text-[#90A2B3] text-[11px] italic">
+                  Passage analysis includes 5-model cross-verification.
+                </span>
+              </div>
+            </div>
+
+            {/* REASONING PANEL */}
+            <AnimatePresence mode="wait">
+              {activeSegment && (
+                <motion.div
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 5 }}
+                  className="bg-[#1A2335] border border-[#2C3A50] rounded-xl p-5 shadow-lg"
+                >
+                  {(() => {
+                    const segment = allSegments.find(s => s.id === activeSegment);
+                    if (!segment) return null;
+                    return (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[#90A2B3] text-[10px] font-bold tracking-widest uppercase">Evidence Trace</span>
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-[#121825] border border-[#2C3A50]" style={{ color: TRUST_COLORS[segment.trust] }}>
+                            {segment.trust.replace(/([A-Z])/g, ' $1').trim()}
+                          </span>
+                        </div>
+                        <p className="text-[#CCD8FF] text-[13px] leading-relaxed">{segment.expandedReasoning}</p>
+                        <div className="pt-3 border-t border-[#2C3A50]/50 flex items-center gap-3">
+                          <span className="text-[#588983] text-[10px] font-bold uppercase">Sources:</span>
+                          <div className="flex gap-2">
+                            {segment.models.map(m => (
+                              <div key={m} className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#121825] border border-[#2C3A50]">
+                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: MODEL_COLORS[m] }} />
+                                <span className="text-[#EBF0FF] text-[9px] uppercase font-bold">{m}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* RIGHT COLUMN */}
+          <div className="col-span-4 space-y-5">
+            <div className="bg-[#121825] border border-[#2C3A50] rounded-xl p-5 shadow-xl flex flex-col items-center justify-center relative overflow-hidden">
+              <span className="text-[#90A2B3] text-[10px] font-bold tracking-[0.2em] uppercase mb-3">Overall Trust Score</span>
+              <div className="relative flex items-center justify-center w-32 h-32 mb-1">
+                <svg className="w-full h-full transform -rotate-90">
+                  <circle cx="64" cy="64" r="56" fill="none" stroke="#1A2335" strokeWidth="10" />
+                  <motion.circle cx="64" cy="64" r="56" fill="none" stroke="#00D68F" strokeWidth="10" strokeLinecap="round" strokeDasharray="351.86" initial={{ strokeDashoffset: 351.86 }} animate={{ strokeDashoffset: 351.86 - (351.86 * (SUMMARY_METRICS.trustScore / 100)) }} transition={{ duration: 1.5 }} />
+                </svg>
+                <div className="absolute flex flex-col items-center">
+                  <span className="text-[#EBF0FF] text-4xl font-bold">{SUMMARY_METRICS.trustScore}</span>
+                  <span className="text-[#00D68F] text-[10px] font-bold uppercase mt-0.5">/ 100</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#121825] border border-[#2C3A50] rounded-xl p-5 shadow-xl space-y-3.5">
+              <div className="flex items-center justify-between pb-3.5 border-b border-[#2C3A50]">
+                <div className="flex items-center gap-2 text-[#90A2B3]"><Layers className="w-3.5 h-3.5" /><span className="text-[13px]">Claims Extracted</span></div>
+                <span className="text-[#EBF0FF] text-[13px] font-mono font-bold">{SUMMARY_METRICS.claimsExtracted}</span>
+              </div>
+              <div className="flex items-center justify-between pb-3.5 border-b border-[#2C3A50]">
+                <div className="flex items-center gap-2 text-[#90A2B3]"><Database className="w-3.5 h-3.5" /><span className="text-[13px]">Sources Verified</span></div>
+                <span className="text-[#EBF0FF] text-[13px] font-mono font-bold">{SUMMARY_METRICS.sourcesVerified}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[#90A2B3]"><Activity className="w-3.5 h-3.5" /><span className="text-[13px]">Consensus Matches</span></div>
+                <span className="text-[#EBF0FF] text-[13px] font-mono font-bold">{SUMMARY_METRICS.modelsReachedConsensus} / 5</span>
+              </div>
+            </div>
+
+            <button onClick={() => onOpenVisualizer('Evidence Network')} className="w-full group relative flex items-center justify-between bg-gradient-to-r from-[#1A2335] to-[#2C3A50] hover:to-[#3D2E50] border border-[#588983]/30 p-4 rounded-xl shadow-lg transition-all duration-300">
+              <div className="flex flex-col items-start"><span className="text-[#EBF0FF] font-bold text-[15px]">View Reasoning</span><span className="text-[#A9BDE8] text-[11px]">Explore Evidence Network</span></div>
+              <div className="w-8 h-8 rounded-full bg-[#121825] border border-[#2C3A50] flex items-center justify-center group-hover:scale-110 transition-transform"><ChevronRight className="w-4 h-4 text-[#EBF0FF]" /></div>
+            </button>
+
+            <button onClick={() => onOpenVisualizer('Constellation')} className="w-full group flex items-center justify-between bg-[#121825] hover:bg-[#1A2335] border border-[#2C3A50] p-3 rounded-xl transition-all duration-300">
+              <span className="text-[#90A2B3] group-hover:text-[#EBF0FF] text-[13px] font-medium transition-colors">Open 3D Constellation</span>
+              <ExternalLink className="w-3.5 h-3.5 text-[#588983]" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
