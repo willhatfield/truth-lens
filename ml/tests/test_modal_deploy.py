@@ -25,6 +25,15 @@ from modal_app import (
     score_clusters,
     VOLUME_MOUNT,
 )
+from modal_app import (
+    http_extract_claims,
+    http_embed_claims,
+    http_rerank_evidence_batch,
+    http_nli_verify_batch,
+    http_cluster_claims,
+    http_compute_umap,
+    http_score_clusters,
+)
 
 
 # -- App registration --------------------------------------------------------
@@ -39,6 +48,16 @@ EXPECTED_FUNCTIONS = [
     "score_clusters",
 ]
 
+HTTP_ENDPOINT_NAMES = [
+    "http_extract_claims",
+    "http_embed_claims",
+    "http_rerank_evidence_batch",
+    "http_nli_verify_batch",
+    "http_cluster_claims",
+    "http_compute_umap",
+    "http_score_clusters",
+]
+
 
 class TestAppRegistration:
     def test_app_name(self):
@@ -51,7 +70,7 @@ class TestAppRegistration:
 
     def test_exactly_seven_functions(self):
         registered = list(app.registered_functions.keys())
-        assert len(registered) == 7
+        assert len(registered) == 14
 
 
 # -- GPU function specs ------------------------------------------------------
@@ -214,4 +233,51 @@ class TestModalServerConnectivity:
         fn = app.registered_functions["extract_claims"]
         assert len(fn.spec.mounts) > 0, (
             "extract_claims should have at least one mount"
+        )
+
+
+# -- HTTP endpoint tests ---------------------------------------------------
+
+HTTP_ENDPOINTS = [
+    ("http_extract_claims", http_extract_claims, "A10G", 16384),
+    ("http_embed_claims", http_embed_claims, "A10G", 16384),
+    ("http_rerank_evidence_batch", http_rerank_evidence_batch, "A10G", 16384),
+    ("http_nli_verify_batch", http_nli_verify_batch, "A10G", 24576),
+    ("http_cluster_claims", http_cluster_claims, None, 8192),
+    ("http_compute_umap", http_compute_umap, None, 16384),
+    ("http_score_clusters", http_score_clusters, None, 8192),
+]
+
+
+class TestHttpEndpoints:
+    def test_all_seven_http_endpoints_registered(self):
+        registered = list(app.registered_functions.keys())
+        for name in HTTP_ENDPOINT_NAMES:
+            assert name in registered, f"{name} not registered"
+
+    @pytest.mark.parametrize(
+        "name,fn,expected_gpu,expected_memory", HTTP_ENDPOINTS,
+    )
+    def test_http_endpoint_has_secrets(self, name, fn, expected_gpu, expected_memory):
+        spec = fn.spec
+        secret_names = []
+        for i in range(len(spec.secrets)):
+            secret_names.append(str(spec.secrets[i]))
+        has_api_key = False
+        for i in range(len(secret_names)):
+            print(secret_names[i])
+            if "truthlens-api-key" in secret_names[i]:
+                has_api_key = True
+                break
+        assert has_api_key, f"{name} missing truthlens-api-key secret"
+
+    @pytest.mark.parametrize(
+        "name,fn,expected_gpu,expected_memory", HTTP_ENDPOINTS,
+    )
+    def test_http_endpoint_memory_matches_core(
+        self, name, fn, expected_gpu, expected_memory,
+    ):
+        spec = fn.spec
+        assert spec.memory == expected_memory, (
+            f"{name} expected memory {expected_memory}, got {spec.memory}"
         )
