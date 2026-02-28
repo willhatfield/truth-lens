@@ -131,7 +131,7 @@ async def run_pipeline(analysis_id: str, prompt: str, publish: PublishFn) -> Non
         ml_result: dict = {}
         try:
             async def _evidence_step(claims: list[dict]) -> dict:
-                passages = await retrieve_evidence(claims)
+                passages = await retrieve_evidence(claims, max_results=3)
                 total_passages = sum(len(v) for v in passages.values())
                 await publish(
                     analysis_id,
