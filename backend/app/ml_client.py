@@ -49,6 +49,24 @@ def _claim_metadata_map(claims: list[dict[str, Any]]) -> dict[str, dict[str, str
     return out
 
 
+def _normalize_passages(
+    passages: list[dict[str, Any]] | None,
+    claim_id: str,
+) -> list[dict[str, str]]:
+    normalized: list[dict[str, str]] = []
+    for idx, p in enumerate(passages or []):
+        pid = str(p.get("passage_id", "")).strip() or f"{claim_id}::p{idx}"
+        text = str(p.get("text", ""))
+        if not text.strip():
+            text = "[no evidence provided]"
+        normalized.append({"passage_id": pid, "text": text})
+    if not normalized:
+        normalized = [
+            {"passage_id": f"{claim_id}::p0", "text": "[no evidence provided]"}
+        ]
+    return normalized
+
+
 def _build_pairs(
     claims: list[dict[str, Any]],
     rankings: list[dict[str, Any]],
@@ -181,9 +199,7 @@ async def run_ml_pipeline(
         cid = str(c.get("claim_id", ""))
         if not cid:
             continue
-        passages = passages_by_claim.get(cid, [])
-        if not passages:
-            passages = [{"passage_id": f"{cid}::p0", "text": ""}]
+        passages = _normalize_passages(passages_by_claim.get(cid, []), cid)
         rerank_items.append(
             {
                 "claim_id": cid,

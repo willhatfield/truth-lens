@@ -21,6 +21,17 @@ def _generate_claude_text(prompt: str, model: str, api_key: str) -> str:
     return "".join(parts)
 
 
+def _candidate_models() -> list[str]:
+    configured = os.getenv("CLAUDE_MODEL", "").strip()
+    if configured:
+        return [configured]
+    return [
+        "claude-sonnet-4-20250514",
+        "claude-3-7-sonnet-latest",
+        "claude-3-5-sonnet-latest",
+    ]
+
+
 async def stream_claude(prompt: str) -> AsyncIterator[str]:
     api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY")
     if not api_key:
@@ -29,15 +40,27 @@ async def stream_claude(prompt: str) -> AsyncIterator[str]:
             yield chunk
         return
 
-    try:
-        text = await asyncio.to_thread(
-            _generate_claude_text,
-            prompt,
-            "claude-3-5-sonnet-latest",
-            api_key,
-        )
-        async for chunk in stream_static_text(text):
-            yield chunk
-    except Exception as exc:
-        async for chunk in stream_static_text(f"[claude streaming failed] {exc}"):
-            yield chunk
+    last_exc: Exception | None = None
+    for model_name in _candidate_models():
+        try:
+            text = await asyncio.to_thread(
+                _generate_claude_text,
+                prompt,
+                model_name,
+                api_key,
+            )
+            async for chunk in stream_static_text(text):
+                yield chunk
+            return
+        except Exception as exc:
+            last_exc = exc
+            if "not_found_error" in str(exc):
+                continue
+            async for chunk in stream_static_text(f"[claude streaming failed] {exc}"):
+                yield chunk
+            return
+
+    async for chunk in stream_static_text(
+        f"[claude streaming failed] {last_exc or 'no usable Claude model configured'}"
+    ):
+        yield chunk
