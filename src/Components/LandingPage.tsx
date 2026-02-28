@@ -136,48 +136,50 @@ export default function LandingPage() {
         <h1 className="max-w-3xl mb-4 text-5xl font-extrabold tracking-tight md:text-6xl text-text-primary">
           the AI trust <br /> intelligence platform
         </h1>
-        <p className="mb-12 text-lg text-text-secondary">
+        
+        {/* Space Between Search and Header */}
+        <p className="mb-[120px] text-lg text-text-secondary">
           Get verified consensus, not just a single hallucination.
         </p>
 
         {/* Search Container */}
         <div className="flex flex-col items-center">
           {/* Search Input Bar */}
-        <div 
-        className={`flex items-center px-4 transition-all border backdrop-blur-sm ${
-            showError 
-            ? 'border-red-500/50 bg-red-500/10 animate-shake' 
-            : 'bg-input/80 border-border focus-within:border-text-accent focus-within:shadow-[0_0_20px_rgba(169,189,232,0.15)]'
-        }`}
-        style={{ width: '694px', height: '55px', borderRadius: '26px' }}
-        >
-        <Search className={`w-5 h-5 mr-3 transition-colors ${showError ? 'text-red-400' : 'text-text-secondary'}`} />
-        <input 
-            type="text" 
-            value={inputValue}
-            onChange={(e) => {
-            setInputValue(e.target.value);
-            if (showError) setShowError(false);
-            }}
-            placeholder={placeholderText}
-            onKeyDown={handleKeyDown}
-            className={`flex-1 text-base bg-transparent outline-none transition-colors ${
-            showError 
-                ? 'text-red-100 placeholder:text-red-400/60' 
-                : 'text-text-primary placeholder:text-text-secondary'
+          <div 
+            className={`flex items-center px-4 transition-all border backdrop-blur-sm ${
+              showError 
+                ? 'border-red-500/50 bg-red-500/10 animate-shake' 
+                : 'bg-input/80 border-border focus-within:border-text-accent focus-within:shadow-[0_0_20px_rgba(169,189,232,0.15)]'
             }`}
-        />
-        <button 
-            className={`p-2 ml-2 transition-colors rounded-full ${
-            showError 
-                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' 
-                : 'bg-elevated text-text-secondary hover:text-text-primary'
-            }`}
-            onClick={handleSubmit}
-        >
-            <ChevronRight className="w-5 h-5" />
-        </button>
-        </div>
+            style={{ width: '694px', height: '55px', borderRadius: '26px' }}
+          >
+            <Search className={`w-5 h-5 mr-3 transition-colors ${showError ? 'text-red-400' : 'text-text-secondary'}`} />
+            <input 
+              type="text" 
+              value={inputValue}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                if (showError) setShowError(false); // Clear error as soon as they start typing
+              }}
+              placeholder={placeholderText}
+              onKeyDown={handleKeyDown}
+              className={`flex-1 text-base bg-transparent outline-none transition-colors ${
+                showError 
+                  ? 'text-red-100 placeholder:text-red-400/60' 
+                  : 'text-text-primary placeholder:text-text-secondary'
+              }`}
+            />
+            <button 
+              className={`p-2 ml-2 transition-colors rounded-full ${
+                showError 
+                  ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' 
+                  : 'bg-elevated text-text-secondary hover:text-text-primary'
+              }`}
+              onClick={handleSubmit}
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
 
           {/* Error Message Wrapper (Keeps layout from jumping) */}
           <div className="h-6 mt-3">
