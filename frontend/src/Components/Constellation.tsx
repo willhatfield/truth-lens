@@ -107,7 +107,7 @@ function FlowingBead({ start, end, color, delay = 0, speed = 0.3, isDimmed }: { 
   const endVec = useMemo(() => new THREE.Vector3(...end), [end]);
   const currentPos = useMemo(() => new THREE.Vector3(), []);
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     if (!meshRef.current || !materialRef.current) return;
     if (isDimmed) {
       materialRef.current.opacity = 0; // Hide beads if line is dimmed

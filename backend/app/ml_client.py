@@ -1,132 +1,35 @@
 import asyncio
 import os
-from typing import Any, Callable
+from typing import Any
 
 import httpx
 
+from .schemas import EventEnvelope
 
-SCHEMA_VERSION = "1.0"
-
-ENDPOINT_SUFFIXES = {
-    "extract_claims": "http-extract-claims",
-    "embed_claims": "http-embed-claims",
-    "cluster_claims": "http-cluster-claims",
-    "rerank_evidence_batch": "http-rerank-evidence-batch",
-    "nli_verify_batch": "http-nli-verify-batch",
-    "compute_umap": "http-compute-umap",
-    "score_clusters": "http-score-clusters",
-}
+PublishFn = Callable[[str, dict], Awaitable[None]]
 
 
-def _endpoint_url(suffix: str) -> str:
-    # Example prefix: https://vicxiya24--truthlens-ml
-    prefix = os.getenv("ML_MODAL_ENDPOINT_PREFIX", "").strip().rstrip("/")
-    if not prefix:
-        raise RuntimeError("ML_MODAL_ENDPOINT_PREFIX is not set")
-    return f"{prefix}-{suffix}.modal.run"
+def _ml_service_url() -> str:
+    url = os.getenv("ML_SERVICE_URL", "").strip().rstrip("/")
+    if not url:
+        raise RuntimeError("ML_SERVICE_URL is not set")
+    return url
 
 
-def _auth_headers() -> dict[str, str]:
-    token = os.getenv("ML_MODAL_API_KEY", "").strip()
-    if not token:
-        raise RuntimeError("ML_MODAL_API_KEY is not set")
+def _ml_auth_headers() -> dict[str, str]:
+    key = os.getenv("ML_SERVICE_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError("ML_SERVICE_API_KEY is not set")
     return {
-        "Authorization": f"Bearer {token}",
+        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
-
-
-def _claim_metadata_map(claims: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
-    out: dict[str, dict[str, str]] = {}
-    for claim in claims:
-        cid = str(claim.get("claim_id", ""))
-        if not cid:
-            continue
-        out[cid] = {
-            "model_id": str(claim.get("model_id", "")),
-            "claim_text": str(claim.get("claim_text", "")),
-        }
-    return out
-
-
-def _normalize_passages(
-    passages: list[dict[str, Any]] | None,
-    claim_id: str,
-) -> list[dict[str, str]]:
-    normalized: list[dict[str, str]] = []
-    for idx, p in enumerate(passages or []):
-        pid = str(p.get("passage_id", "")).strip() or f"{claim_id}::p{idx}"
-        text = str(p.get("text", ""))
-        if not text.strip():
-            text = "[no evidence provided]"
-        normalized.append({"passage_id": pid, "text": text})
-    if not normalized:
-        normalized = [
-            {"passage_id": f"{claim_id}::p0", "text": "[no evidence provided]"}
-        ]
-    return normalized
-
-
-def _build_pairs(
-    claims: list[dict[str, Any]],
-    rankings: list[dict[str, Any]],
-    rerank_items: list[dict[str, Any]],
-) -> list[dict[str, str]]:
-    claim_text_by_id: dict[str, str] = {}
-    for claim in claims:
-        cid = str(claim.get("claim_id", ""))
-        if not cid:
-            continue
-        claim_text_by_id[cid] = str(claim.get("claim_text", ""))
-
-    # passage text lookup by claim_id/passage_id from rerank request items
-    passage_text_by_claim: dict[str, dict[str, str]] = {}
-    for item in rerank_items:
-        cid = str(item.get("claim_id", ""))
-        if not cid:
-            continue
-        claim_passages = passage_text_by_claim.setdefault(cid, {})
-        for passage in item.get("passages", []) or []:
-            pid = str(passage.get("passage_id", ""))
-            if not pid:
-                continue
-            txt = str(passage.get("text", ""))
-            claim_passages[pid] = txt if txt else " "
-
-    pairs: list[dict[str, str]] = []
-    for r in rankings:
-        cid = str(r.get("claim_id", ""))
-        if not cid:
-            continue
-        ordered = r.get("ordered_passage_ids", []) or []
-        for pid_raw in ordered:
-            pid = str(pid_raw)
-            pairs.append(
-                {
-                    "pair_id": f"{cid}::{pid}",
-                    "claim_id": cid,
-                    "passage_id": pid,
-                    "claim_text": claim_text_by_id.get(cid, ""),
-                    "passage_text": passage_text_by_claim.get(cid, {}).get(pid, " "),
-                }
-            )
-    return pairs
-
-
-async def _post(name: str, payload: dict[str, Any]) -> dict[str, Any]:
-    suffix = ENDPOINT_SUFFIXES[name]
-    url = _endpoint_url(suffix)
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(url, headers=_auth_headers(), json=payload)
-        resp.raise_for_status()
-        return resp.json()
 
 
 async def run_ml_pipeline(
     analysis_id: str,
     model_outputs: list[dict[str, str]],
     passages_by_claim: dict[str, list[dict[str, str]]] | None = None,
-    retrieve_fn: Callable | None = None,
 ) -> dict[str, Any]:
     filtered_responses = []
     for item in model_outputs:
@@ -194,10 +97,7 @@ async def run_ml_pipeline(
     cluster, umap = await asyncio.gather(cluster_task, umap_task)
 
     # If retrieval is not wired yet, run with empty evidence lists (valid but less useful).
-    if retrieve_fn is not None:
-        passages_by_claim = await retrieve_fn(claims)
-    else:
-        passages_by_claim = passages_by_claim or {}
+    passages_by_claim = passages_by_claim or {}
     rerank_items = []
     for c in claims:
         cid = str(c.get("claim_id", ""))

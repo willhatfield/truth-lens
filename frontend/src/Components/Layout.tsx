@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 
 interface LayoutProps {
@@ -5,6 +6,8 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
+  const [showVisualizationMenu, setShowVisualizationMenu] = useState(false);
+
   return (
     // The main wrapper: full screen, deep background color, standard text color
     <div className="relative flex w-screen h-screen overflow-hidden bg-deep-bg text-text-primary">
