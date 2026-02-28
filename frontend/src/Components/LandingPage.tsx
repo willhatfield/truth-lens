@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Search, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, ChevronRight, Paperclip, X, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // Custom component to recreate the Figma glowing variant
@@ -22,7 +22,10 @@ const NavButton = ({ children, width }: { children: string; width: string }) => 
 export default function LandingPage() {
   const [placeholderText, setPlaceholderText] = useState("");
   const [inputValue, setInputValue] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showError, setShowError] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   // CSS Injection for the shake animation
@@ -40,7 +43,7 @@ export default function LandingPage() {
 
   // Bulletproof Typewriter effect
   useEffect(() => {
-    const text = "enter a prompt...";
+    const text = "enter a prompt or upload an article...";
     let timeoutId: ReturnType<typeof setTimeout>;
     let currentIndex = 0;
 
@@ -48,7 +51,7 @@ export default function LandingPage() {
       setPlaceholderText(text.slice(0, currentIndex + 1));
       currentIndex++;
       if (currentIndex < text.length) {
-        timeoutId = setTimeout(typeChar, 150); // Typing speed
+        timeoutId = setTimeout(typeChar, 100); // Typing speed
       }
     };
 
@@ -59,12 +62,15 @@ export default function LandingPage() {
 
   // Validation handler
   const handleSubmit = () => {
-    if (!inputValue.trim()) {
+    // Check if both input and file are empty
+    if (!inputValue.trim() && !selectedFile) {
       setShowError(true);
       // Remove the error state after the animation finishes
       setTimeout(() => setShowError(false), 2000); 
       return;
     }
+    
+    // In a real app, you would pass the file and prompt to your global state/backend here
     navigate('/loading'); // Routes to the 5-Model dashboard
   };
 
@@ -73,6 +79,20 @@ export default function LandingPage() {
     if (e.key === 'Enter') {
       handleSubmit();
     }
+  };
+
+  // File selection handler
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+      if (showError) setShowError(false);
+    }
+    // Reset the input value so the same file can be selected again if removed
+    e.target.value = '';
+  };
+
+  const removeFile = () => {
+    setSelectedFile(null);
   };
 
   return (
@@ -144,16 +164,43 @@ export default function LandingPage() {
 
         {/* Search Container */}
         <div className="flex flex-col items-center">
+          
+          {/* Hidden File Input */}
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileChange} 
+            className="hidden"
+            accept=".txt,.pdf,.docx,.md" // Restrict to text-based documents
+          />
+
           {/* Search Input Bar */}
           <div 
             className={`flex items-center px-4 transition-all border backdrop-blur-sm ${
               showError 
-                ? 'border-red-500/50 bg-red-500/10 animate-shake' 
+                ? 'border-[#FF4757]/50 bg-[#FF4757]/10 animate-shake' 
                 : 'bg-input/80 border-border focus-within:border-text-accent focus-within:shadow-[0_0_20px_rgba(169,189,232,0.15)]'
             }`}
-            style={{ width: '694px', height: '55px', borderRadius: '26px' }}
+            style={{ width: '694px', minHeight: '55px', borderRadius: '26px' }}
           >
-            <Search className={`w-5 h-5 mr-3 transition-colors ${showError ? 'text-red-400' : 'text-text-secondary'}`} />
+            <Search className={`w-5 h-5 mr-3 shrink-0 transition-colors ${showError ? 'text-[#FF4757]' : 'text-text-secondary'}`} />
+            
+            {/* Display Selected File Pill */}
+            {selectedFile && (
+              <div className="flex items-center gap-2 px-3 py-1.5 mr-2 bg-[#1A2335] border border-[#2C3A50] rounded-full shrink-0 animate-in fade-in zoom-in duration-200">
+                <FileText className="w-3.5 h-3.5 text-[#A9BDE8]" />
+                <span className="text-xs font-medium text-[#EBF0FF] max-w-[120px] truncate">
+                  {selectedFile.name}
+                </span>
+                <button 
+                  onClick={removeFile}
+                  className="p-0.5 rounded-full hover:bg-[#2C3A50] transition-colors"
+                >
+                  <X className="w-3.5 h-3.5 text-[#FF4757]" />
+                </button>
+              </div>
+            )}
+
             <input 
               type="text" 
               value={inputValue}
@@ -161,19 +208,36 @@ export default function LandingPage() {
                 setInputValue(e.target.value);
                 if (showError) setShowError(false); // Clear error as soon as they start typing
               }}
-              placeholder={placeholderText}
+              placeholder={selectedFile ? "Add an optional prompt..." : placeholderText}
               onKeyDown={handleKeyDown}
-              className={`flex-1 text-base bg-transparent outline-none transition-colors ${
+              className={`flex-1 text-base bg-transparent outline-none transition-colors min-w-0 py-2 ${
                 showError 
                   ? 'text-red-100 placeholder:text-red-400/60' 
                   : 'text-text-primary placeholder:text-text-secondary'
               }`}
             />
+            
+            {/* Attachment Button */}
             <button 
-              className={`p-2 ml-2 transition-colors rounded-full ${
+              className={`p-2 ml-2 transition-colors rounded-full shrink-0 ${
+                selectedFile
+                  ? 'text-[#A9BDE8] bg-[#1A2335]'
+                  : showError
+                    ? 'text-[#FF4757] hover:bg-[#FF4757]/20'
+                    : 'text-[#90A2B3] hover:text-[#EBF0FF] hover:bg-[#1A2335]'
+              }`}
+              onClick={() => fileInputRef.current?.click()}
+              title="Upload an article or document"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+
+            {/* Submit Button */}
+            <button 
+              className={`p-2 ml-1 transition-colors rounded-full shrink-0 ${
                 showError 
-                  ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' 
-                  : 'bg-elevated text-text-secondary hover:text-text-primary'
+                  ? 'bg-[#FF4757]/20 text-[#FF4757] hover:bg-[#FF4757]/30' 
+                  : 'bg-elevated text-text-secondary hover:text-text-primary hover:bg-[#2C3A50]'
               }`}
               onClick={handleSubmit}
             >
@@ -184,11 +248,11 @@ export default function LandingPage() {
           {/* Error Message Wrapper (Keeps layout from jumping) */}
           <div className="h-6 mt-3">
             <span 
-              className={`text-red-400/90 text-[15px] transition-all duration-300 ${
+              className={`text-[#FF4757]/90 text-[14px] tracking-wide transition-all duration-300 ${
                 showError ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
               }`}
             >
-              Please enter a prompt to begin your search.
+              Please enter a prompt or upload a document to begin.
             </span>
           </div>
         </div>

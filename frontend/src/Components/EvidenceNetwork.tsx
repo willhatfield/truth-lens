@@ -81,8 +81,11 @@ export default function EvidenceNetwork({ selectedModels }: EvidenceNetworkProps
 
   // Generate smooth cubic bezier curve
   const createSmoothCurve = (x1: number, y1: number, x2: number, y2: number) => {
+    // FIX: Add a microscopic 1px offset if perfectly horizontal to prevent SVG filter clipping
+    const safeY2 = y1 === y2 ? y2 + 1 : y2; 
+    
     const controlPointOffset = (x2 - x1) * 0.5;
-    return `M ${x1},${y1} C ${x1 + controlPointOffset},${y1} ${x2 - controlPointOffset},${y2} ${x2},${y2}`;
+    return `M ${x1},${y1} C ${x1 + controlPointOffset},${y1} ${x2 - controlPointOffset},${safeY2} ${x2},${safeY2}`;
   };
 
   const getPos = (val: number, isX: boolean) => `${(val / (isX ? VIEW_W : VIEW_H)) * 100}%`;
@@ -103,6 +106,18 @@ export default function EvidenceNetwork({ selectedModels }: EvidenceNetworkProps
         <div className="relative flex-1 h-full" onClick={() => setActiveNode(null)}>
           
           <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="absolute inset-0 w-full h-full z-0">
+            
+            {/* --- NEW: GLOW FILTER DEFINITION --- */}
+            <defs>
+              <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                <feMerge>
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            </defs>
+
             {/* EDGES (Lines) */}
             {LINKS.map((link, i) => {
               const source = layoutData.claims.find(c => c.id === link.source);
@@ -113,21 +128,52 @@ export default function EvidenceNetwork({ selectedModels }: EvidenceNetworkProps
               const hasAnyFocus = hoveredNode || activeNode;
               
               const edgeColor = NLI_COLORS[target.nli];
-              const strokeWidth = isFocus ? 6 : target.relevance * 4;
-              const opacity = hasAnyFocus ? (isFocus ? 0.8 : 0.05) : 0.4;
+              const strokeWidth = isFocus ? 4 : target.relevance * 3;
+              
+              // Dim unrelated edges aggressively to make the active ones pop
+              const opacity = hasAnyFocus ? (isFocus ? 0.7 : 0.05) : 0.3;
+              const pathString = createSmoothCurve(source.x, source.y, target.x, target.y);
 
               return (
-                <motion.path
-                  key={`link-${i}`}
-                  d={createSmoothCurve(source.x, source.y, target.x, target.y)}
-                  fill="none"
-                  stroke={edgeColor}
-                  strokeWidth={Math.max(1, strokeWidth)}
-                  animate={{ opacity }}
-                  transition={{ duration: 0.3 }}
-                  className="transition-all duration-300"
-                  strokeLinecap="round"
-                />
+                <g key={`link-${i}`}>
+                  {/* LAYER 1: The Base Track */}
+                  <motion.path
+                    d={pathString}
+                    fill="none"
+                    stroke={edgeColor}
+                    strokeWidth={Math.max(1, strokeWidth)}
+                    animate={{ opacity }}
+                    transition={{ duration: 0.3 }}
+                    className="transition-all duration-300"
+                    strokeLinecap="round"
+                  />
+                  
+                  {/* LAYER 2: The Glowing Energy Beads */}
+                  <motion.path
+                    d={pathString}
+                    fill="none"
+                    stroke={edgeColor}
+                    strokeWidth={Math.max(2, strokeWidth * 1.5)} // Slightly thicker for the glow
+                    filter="url(#neonGlow)" // Applies the gaussian blur defined in <defs>
+                    style={{
+                      strokeDasharray: "12 36", // 12px bead, 36px empty gap
+                      strokeLinecap: "round"
+                    }}
+                    animate={{ 
+                      opacity: isFocus ? 1 : (hasAnyFocus ? 0 : 0.4), // Bright glow when focused
+                      strokeDashoffset: [-100, 0] // Negative to Positive makes it flow Left to Right
+                    }}
+                    transition={{ 
+                      opacity: { duration: 0.3 },
+                      // If it's focused, beads flow fast. If idle, they flow slowly.
+                      strokeDashoffset: { 
+                        repeat: Infinity, 
+                        ease: "linear", 
+                        duration: isFocus ? 1.5 : 4 
+                      }
+                    }}
+                  />
+                </g>
               );
             })}
           </svg>
