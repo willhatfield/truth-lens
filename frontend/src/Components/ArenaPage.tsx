@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Constellation from './Constellation';
 import Heatmap from './Heatmap';
+import KnowledgeDeck from './KnowledgeDeck';
+import Pipeline from './Pipeline';
 
 export default function ArenaPage() {
   const navigate = useNavigate();
@@ -266,6 +268,10 @@ export default function ArenaPage() {
               return <Constellation selectedModels={selectedModels} />;
             case "Heatmap":
               return <Heatmap selectedModels={selectedModels} />;
+            case "Knowledge Deck":
+              return <KnowledgeDeck selectedModels={selectedModels} />;
+            case "Pipeline":
+              return <Pipeline selectedModels={selectedModels} />;
             default:
               return (
                 <p className="text-[#5E6E81] font-['Inter'] animate-pulse text-lg tracking-widest uppercase">
