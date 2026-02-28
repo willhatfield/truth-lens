@@ -7,9 +7,11 @@ from .providers.gemini import stream_gemini
 from .providers.claude import stream_claude
 from .modal_calls.kimi import stream_kimi
 from .modal_calls.llama import stream_llama
+from .ml_client import run_ml_pipeline
 
 StreamerFn = Callable[[str], AsyncIterator[str]]
 PublishFn = Callable[[str, dict], Awaitable[None]]
+MODEL_TIMEOUT_SECONDS = 90
 
 MODEL_STREAMERS: list[tuple[str, StreamerFn]] = [
     ("openai_gpt4", stream_openai),
@@ -39,16 +41,29 @@ async def _run_model(
     full_text = ""
     warning = None
     try:
-        async for delta in streamer(prompt):
-            full_text += delta
-            await publish(
-                analysis_id,
-                EventEnvelope(
-                    analysis_id=analysis_id,
-                    type="MODEL_TOKEN",
-                    payload={"model_id": model_id, "delta": delta},
-                ).model_dump(),
-            )
+        async with asyncio.timeout(MODEL_TIMEOUT_SECONDS):
+            async for delta in streamer(prompt):
+                full_text += delta
+                await publish(
+                    analysis_id,
+                    EventEnvelope(
+                        analysis_id=analysis_id,
+                        type="MODEL_TOKEN",
+                        payload={"model_id": model_id, "delta": delta},
+                    ).model_dump(),
+                )
+    except TimeoutError:
+        warning = (
+            f"{model_id} stream timed out after {MODEL_TIMEOUT_SECONDS}s"
+        )
+        await publish(
+            analysis_id,
+            EventEnvelope(
+                analysis_id=analysis_id,
+                type="STAGE_FAILED",
+                payload={"stage": f"{model_id}_stream", "message": warning},
+            ).model_dump(),
+        )
     except Exception as exc:
         warning = f"{model_id} stream failed: {exc}"
         await publish(
@@ -103,6 +118,25 @@ async def run_pipeline(analysis_id: str, prompt: str, publish: PublishFn) -> Non
             if result["warning"]:
                 warnings.append(result["warning"])
 
+        ml_result: dict = {}
+        try:
+            ml_result = await run_ml_pipeline(
+                analysis_id=analysis_id,
+                model_outputs=models,
+            )
+            warnings.extend(ml_result.get("warnings", []) or [])
+        except Exception as exc:
+            ml_warning = f"ml pipeline failed: {exc}"
+            warnings.append(ml_warning)
+            await publish(
+                analysis_id,
+                EventEnvelope(
+                    analysis_id=analysis_id,
+                    type="STAGE_FAILED",
+                    payload={"stage": "ml_pipeline", "message": ml_warning},
+                ).model_dump(),
+            )
+
         await publish(
             analysis_id,
             EventEnvelope(
@@ -114,6 +148,7 @@ async def run_pipeline(analysis_id: str, prompt: str, publish: PublishFn) -> Non
                         "analysis_id": analysis_id,
                         "prompt": prompt,
                         "models": models,
+                        "ml": ml_result,
                         "warnings": warnings,
                     }
                 },

@@ -2,6 +2,8 @@ import asyncio
 from typing import Dict, List
 from fastapi import WebSocket
 
+TERMINAL_EVENT_TYPES = ("DONE", "FATAL_ERROR")
+
 
 class WSManager:
     def __init__(self, history_limit: int = 500) -> None:
@@ -22,6 +24,9 @@ class WSManager:
         if len(self.history[analysis_id]) > self.history_limit:
             self.history[analysis_id] = self.history[analysis_id][-self.history_limit :]
 
+    def get_history(self, analysis_id: str) -> List[dict]:
+        return list(self.history.get(analysis_id, []))
+
     async def publish(self, analysis_id: str, event: dict) -> None:
         self._append_history(analysis_id, event)
         q = self.get_queue(analysis_id)
@@ -33,7 +38,7 @@ class WSManager:
         # Replay anything that already happened
         for event in self.history.get(analysis_id, []):
             await ws.send_json(event)
-            if event.get("type") in ("DONE", "FATAL_ERROR"):
+            if event.get("type") in TERMINAL_EVENT_TYPES:
                 await ws.close()
                 return
 
@@ -42,7 +47,7 @@ class WSManager:
             while True:
                 event = await q.get()
                 await ws.send_json(event)
-                if event.get("type") in ("DONE", "FATAL_ERROR"):
+                if event.get("type") in TERMINAL_EVENT_TYPES:
                     break
         finally:
             await ws.close()

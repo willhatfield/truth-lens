@@ -24,3 +24,5 @@ class AnalyzeRequest(BaseModel):
 class AnalyzeResponse(BaseModel):
     schema_version: str = Field(default=SCHEMA_VERSION)
     analysis_id: str
+    ws_url: Optional[str] = None
+    sse_url: Optional[str] = None
