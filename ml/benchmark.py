@@ -107,13 +107,17 @@ def make_nli_verify_batch_payload() -> dict:
 
 
 def make_compute_umap_payload() -> dict:
-    """Build a minimal valid ComputeUmapRequest dict."""
-    vec_a = [0.1] * EMBEDDING_DIM
-    vec_b = [0.2] * EMBEDDING_DIM
-    vec_c = [0.3] * EMBEDDING_DIM
+    """Build a minimal valid ComputeUmapRequest dict.
+
+    Uses 6 vectors so n_samples (6) > n_components (3), avoiding
+    UMAP spectral-init failure that forces the zero-coordinate fallback.
+    """
+    vectors: dict = {}
+    for i in range(6):
+        vectors[f"c{i + 1}"] = [0.1 * (i + 1)] * EMBEDDING_DIM
     return {
         "analysis_id": "bench-001",
-        "vectors": {"c1": vec_a, "c2": vec_b, "c3": vec_c},
+        "vectors": vectors,
         "n_neighbors": 2,
         "min_dist": 0.1,
     }

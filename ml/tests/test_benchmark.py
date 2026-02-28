@@ -203,6 +203,12 @@ class TestComputeUmapPayload:
         assert "vectors" in payload
         assert len(payload["vectors"]) >= 1
 
+    def test_sample_count_exceeds_n_components(self) -> None:
+        """n_samples must exceed n_components (3) to avoid spectral-init fallback."""
+        payload = make_compute_umap_payload()
+        n_components = 3
+        assert len(payload["vectors"]) > n_components
+
     def test_vector_dimension_matches(self) -> None:
         payload = make_compute_umap_payload()
         for vec in payload["vectors"].values():
