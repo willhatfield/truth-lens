@@ -5,9 +5,14 @@ Uses patch.dict("sys.modules", ...) to mock lazily-imported packages.
 """
 
 import sys
+import warnings
 import pytest
 from unittest.mock import patch, MagicMock
 import numpy as np
+
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:.*executing locally.*:UserWarning"
+)
 
 from modal_app import (
     extract_claims,
@@ -771,6 +776,34 @@ class TestNliVerifyBatch:
         assert len(result["results"]) == 2
         for r in result["results"]:
             assert r["label"] == "neutral"
+
+    def test_fallback_probs_neutral_is_highest(self):
+        """Fallback probs should have neutral as highest, matching the label."""
+        mock_transformers = MagicMock()
+        mock_transformers.AutoTokenizer.from_pretrained.side_effect = (
+            RuntimeError("fail")
+        )
+
+        mock_torch = MagicMock()
+
+        with patch.dict("sys.modules", {
+            "transformers": mock_transformers,
+            "torch": mock_torch,
+        }):
+            result = nli_verify_batch.local({
+                "analysis_id": "a1",
+                "pairs": [{
+                    "pair_id": "nli_1",
+                    "claim_id": "c_1",
+                    "passage_id": "p_1",
+                    "claim_text": "t",
+                    "passage_text": "e",
+                }],
+            })
+
+        probs = result["results"][0]["probs"]
+        assert probs["neutral"] >= probs["entailment"]
+        assert probs["neutral"] >= probs["contradiction"]
 
     def test_invalid_payload_empty_pairs(self):
         result = nli_verify_batch.local({

@@ -727,9 +727,9 @@ def _run_nli_batch(
 def _fallback_nli_all(req) -> list:
     """Return neutral with near-uniform probs for all pairs."""
     uniform = {
-        "entailment": 0.34,
+        "entailment": 0.33,
         "contradiction": 0.33,
-        "neutral": 0.33,
+        "neutral": 0.34,
     }
     results: list = []
     for i in range(len(req.pairs)):

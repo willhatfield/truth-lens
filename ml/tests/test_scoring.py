@@ -101,6 +101,18 @@ def test_trust_score_zero_weights():
     assert result == 0
 
 
+def test_trust_score_clamped_at_100():
+    """Both weights at 1.0 can exceed 100 unclamped; result must be <= 100."""
+    result = compute_trust_score(100.0, 100.0, 1.0, 1.0)
+    assert result == 100
+
+
+def test_trust_score_clamped_at_0():
+    """Trust score should never go below 0."""
+    result = compute_trust_score(0.0, 0.0, 0.0, 0.0)
+    assert result == 0
+
+
 # ---------------------------------------------------------------------------
 # determine_verdict
 # ---------------------------------------------------------------------------

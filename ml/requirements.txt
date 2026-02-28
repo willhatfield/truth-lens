@@ -1,5 +1,5 @@
 # Modal serverless platform
-modal==0.73.25
+modal==1.3.4
 
 # Data validation
 pydantic==2.10.6

@@ -35,7 +35,7 @@ def compute_trust_score(
     """trust_score = round(aw * agreement + vw * clamp(verification, 0, 100))."""
     clamped_verification = clamp(verification_score, 0.0, 100.0)
     raw = agreement_weight * agreement_score + verification_weight * clamped_verification
-    return round(raw)
+    return round(clamp(raw, 0.0, 100.0))
 
 
 def determine_verdict(
