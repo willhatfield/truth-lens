@@ -261,10 +261,10 @@ export default function ArenaPage() {
       >
         {(() => {
           switch (activeVisualization) {
-            case "Synthesized Answer": return <SynthesisView onOpenVisualizer={(view) => setActiveVisualization(view)} />;
-            case "Constellation": return <Constellation selectedModels={selectedModels} />;
-            case "Heatmap": return <Heatmap selectedModels={selectedModels} />;
-            case "Knowledge Deck": return <KnowledgeDeck selectedModels={selectedModels} />;
+            case "Synthesized Answer": return <SynthesisView onOpenVisualizer={(view) => setActiveVisualization(view)} result={null} />;
+            case "Constellation": return <Constellation selectedModels={selectedModels} result={null} />;
+            case "Heatmap": return <Heatmap selectedModels={selectedModels} result={null} />;
+            case "Knowledge Deck": return <KnowledgeDeck selectedModels={selectedModels} result={null} />;
             case "Pipeline": return <Pipeline selectedModels={selectedModels} />;
             case "Evidence Network": return <EvidenceNetwork selectedModels={selectedModels} />;
             default: return <p className="text-[#5E6E81] font-['Inter'] animate-pulse text-lg tracking-widest uppercase">{activeVisualization} View</p>;
