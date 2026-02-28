@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, ChevronRight, Paperclip, X, FileText, Clock, User, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Search, ChevronRight, Paperclip, X, FileText, Clock, User, ShieldCheck, AlertCircle, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { API_BASE } from '../config';
 
 // Custom component to recreate the Figma glowing variant
 const NavButton = ({ children, width, onClick }: { children: React.ReactNode; width: string, onClick?: () => void }) => {
@@ -32,7 +33,9 @@ export default function LandingPage() {
   const [inputValue, setInputValue] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showError, setShowError] = useState(false);
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
   // Auth & History States
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showAuthScreen, setShowAuthScreen] = useState(false);
@@ -78,7 +81,7 @@ export default function LandingPage() {
       #90A2B3 100%
     );
     background-size: 300% 300%;
-    animation: waveMove 12s ease-in-out infinite;
+    animation: waveMove 10s ease-in-out infinite;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     filter: brightness(1.05);
@@ -95,7 +98,7 @@ export default function LandingPage() {
       transparent 60%
     );
     background-size: 300% 300%;
-    animation: waveMove 12s ease-in-out infinite;
+    animation: waveMove 10s ease-in-out infinite;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     filter: blur(14px);
@@ -132,13 +135,27 @@ export default function LandingPage() {
   }, []);
 
   // Validation handler for main search
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!inputValue.trim() && !selectedFile) {
       setShowError(true);
-      setTimeout(() => setShowError(false), 2000); 
+      setTimeout(() => setShowError(false), 2000);
       return;
     }
-    navigate('/loading');
+    setIsSubmitting(true);
+    setSubmitError("");
+    try {
+      const res = await fetch(`${API_BASE}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: inputValue }),
+      });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const { analysis_id } = await res.json();
+      navigate(`/loading?job=${analysis_id}`);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to start analysis");
+      setIsSubmitting(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -295,13 +312,14 @@ export default function LandingPage() {
               <Paperclip className="w-5 h-5" />
             </button>
 
-            <button 
-              className={`p-2 ml-1 transition-colors rounded-full shrink-0 ${
+            <button
+              className={`p-2 ml-1 transition-colors rounded-full shrink-0 disabled:opacity-50 ${
                 showError ? 'bg-[#FF4757]/20 text-[#FF4757] hover:bg-[#FF4757]/30' : 'bg-[#1A2335] text-[#90A2B3] hover:text-[#EBF0FF] hover:bg-[#2C3A50]'
               }`}
               onClick={handleSubmit}
+              disabled={isSubmitting}
             >
-              <ChevronRight className="w-5 h-5" />
+              {isSubmitting ? <Activity className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-5 h-5" />}
             </button>
           </div>
 
@@ -309,6 +327,11 @@ export default function LandingPage() {
             <span className={`text-[#FF4757]/90 text-[14px] tracking-wide transition-all duration-300 ${showError ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
               Please enter a prompt or upload a document to begin.
             </span>
+            {submitError && (
+              <span className="text-[#FF4757]/90 text-[14px] tracking-wide block mt-1">
+                {submitError}
+              </span>
+            )}
           </div>
         </div>
       </main>

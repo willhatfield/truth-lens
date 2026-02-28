@@ -7,7 +7,6 @@ import Heatmap from './Heatmap';
 import KnowledgeDeck from './KnowledgeDeck';
 import Pipeline from './Pipeline';
 import EvidenceNetwork from './EvidenceNetwork';
-import LiveHUD from './LiveHUD';
 import SynthesisView from './SynthesisView';
 
 // --- MOCK HISTORY DATA ---
@@ -75,7 +74,6 @@ export default function ArenaPage() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#0A0E1A] text-[#EBF0FF]">
-      <LiveHUD />
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -263,10 +261,10 @@ export default function ArenaPage() {
       >
         {(() => {
           switch (activeVisualization) {
-            case "Synthesized Answer": return <SynthesisView onOpenVisualizer={(view) => setActiveVisualization(view)} />;
-            case "Constellation": return <Constellation selectedModels={selectedModels} />;
-            case "Heatmap": return <Heatmap selectedModels={selectedModels} />;
-            case "Knowledge Deck": return <KnowledgeDeck selectedModels={selectedModels} />;
+            case "Synthesized Answer": return <SynthesisView onOpenVisualizer={(view) => setActiveVisualization(view)} result={null} />;
+            case "Constellation": return <Constellation selectedModels={selectedModels} result={null} />;
+            case "Heatmap": return <Heatmap selectedModels={selectedModels} result={null} />;
+            case "Knowledge Deck": return <KnowledgeDeck selectedModels={selectedModels} result={null} />;
             case "Pipeline": return <Pipeline selectedModels={selectedModels} />;
             case "Evidence Network": return <EvidenceNetwork selectedModels={selectedModels} />;
             default: return <p className="text-[#5E6E81] font-['Inter'] animate-pulse text-lg tracking-widest uppercase">{activeVisualization} View</p>;

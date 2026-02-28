@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, BrainCircuit, Link as LinkIcon, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
+import type { AnalysisResult } from '../types';
 
 const MODEL_COLORS: Record<string, string> = {
   'GPT-4 (OpenAI)': '#10A37F',
@@ -12,6 +13,7 @@ const MODEL_COLORS: Record<string, string> = {
 
 interface KnowledgeDeckProps {
   selectedModels: string[];
+  result: AnalysisResult | null;
 }
 
 // --- MOCK DATA ---
@@ -51,7 +53,32 @@ const mockData = {
   ]
 };
 
-export default function KnowledgeDeck({ selectedModels }: KnowledgeDeckProps) {
+export default function KnowledgeDeck({ selectedModels, result }: KnowledgeDeckProps) {
+  const queryContext = result?.prompt ?? null;
+
+  const _modelResponses = useMemo(() => {
+    if (!result) return null;
+    return result.models.map(m => ({
+      modelId: m.model_id,
+      excerpt: m.response_text.slice(0, 300) + (m.response_text.length > 300 ? '...' : ''),
+    }));
+  }, [result]);
+
+  const _citedEvidence = useMemo(() => {
+    if (!result) return null;
+    return result.nli_results
+      .filter(r => r.label === 'entailment')
+      .slice(0, 5)
+      .map(r => {
+        const claim = result.claims.find(c => c.claim_id === r.claim_id);
+        return {
+          claimText: claim?.claim_text ?? r.claim_id,
+          passageId: r.passage_id,
+          prob: r.probs.entailment,
+        };
+      });
+  }, [result]);
+
   // Filter logic based on selected models in the sidebar
   const visibleLogic = useMemo(() => {
     return mockData.logic.filter(l => selectedModels.includes(l.model));
@@ -81,7 +108,7 @@ export default function KnowledgeDeck({ selectedModels }: KnowledgeDeckProps) {
           <div className="p-6 overflow-y-auto no-scrollbar flex-1">
             <div className="bg-[#0A0E1A] p-4 rounded-xl border border-[#2C3A50]/50 mb-6">
               <span className="text-xs font-bold text-[#90A2B3] uppercase tracking-wider block mb-2">User Prompt</span>
-              <p className="text-[#EBF0FF] text-lg leading-relaxed">"{mockData.query}"</p>
+              <p className="text-[#EBF0FF] text-lg leading-relaxed">"{queryContext ?? mockData.query}"</p>
             </div>
             
             <div className="space-y-4">
