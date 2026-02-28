@@ -116,16 +116,31 @@ export default function LoadingPage() {
         </div>
       </div>
 
-      {/* Home Button */}
+      {/* Home Button - Synchronized Style */}
       <div className="absolute bottom-10 left-10">
         <button 
           onClick={() => navigate('/')}
-          className="flex items-center justify-center transition-all hover:brightness-110 active:scale-95 bg-panel-bg"
+          className="relative flex items-center justify-center transition-all hover:brightness-125 active:scale-95 bg-[#121825] shadow-xl cursor-pointer group"
           style={{ width: '66px', height: '66px', borderRadius: '26px' }}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="41" height="41" viewBox="0 0 41 41" fill="none">
-            <path d="M15.375 37.5834V20.5001H25.625V37.5834M5.125 15.3751L20.5 3.41675L35.875 15.3751V34.1667C35.875 35.0729 35.515 35.9419 34.8743 36.5827C34.2335 37.2234 33.3645 37.5834 32.4583 37.5834H8.54167C7.63551 37.5834 6.76647 37.2234 6.12572 36.5827C5.48497 35.9419 5.125 35.0729 5.125 34.1667V15.3751Z" 
-              stroke="#5E6E81" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+          {/* The Glow Effect */}
+          <span className="absolute inset-0 transition-opacity duration-300 rounded-full opacity-0 blur-md bg-[#A9BDE8]/20 group-hover:opacity-100" />
+          
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="41" 
+            height="41" 
+            viewBox="0 0 41 41" 
+            fill="none"
+            className="relative z-10 transition-colors duration-200"
+          >
+            <path 
+              d="M15.375 37.5834V20.5001H25.625V37.5834M5.125 15.3751L20.5 3.41675L35.875 15.3751V34.1667C35.875 35.0729 35.515 35.9419 34.8743 36.5827C34.2335 37.2234 33.3645 37.5834 32.4583 37.5834H8.54167C7.63551 37.5834 6.76647 37.2234 6.12572 36.5827C5.48497 35.9419 5.125 35.0729 5.125 34.1667V15.3751Z" 
+              className="stroke-[#5E6E81] group-hover:stroke-[#EBF0FF]" 
+              strokeWidth="3" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            />
           </svg>
         </button>
       </div>

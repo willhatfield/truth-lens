@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Constellation from './Constellation';
+import Heatmap from './Heatmap';
 
 export default function ArenaPage() {
   const navigate = useNavigate();
@@ -60,37 +61,71 @@ export default function ArenaPage() {
         }}
       />
 
-      {/* 2. FLOATING MENU TOGGLE */}
-      <button 
+      {/* 2. FLOATING MENU TOGGLE (Now synchronized with Home style) */}
+        <button 
         onClick={() => setIsSidebarVisible(!isSidebarVisible)}
-        className="absolute z-50 flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] bg-[#121825] shadow-xl hover:brightness-110 active:scale-95"
+        className="absolute z-50 flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] bg-[#121825] shadow-xl hover:brightness-125 active:scale-95 cursor-pointer group"
         style={{ 
-          width: isSidebarVisible ? '41px' : '66px', 
-          height: isSidebarVisible ? '41px' : '66px', 
-          borderRadius: '26px',
-          left: isSidebarVisible ? '224px' : '40px', 
-          top: isSidebarVisible ? '37px' : '40px',
+            width: isSidebarVisible ? '41px' : '66px', 
+            height: isSidebarVisible ? '41px' : '66px', 
+            borderRadius: '26px',
+            left: isSidebarVisible ? '224px' : '40px', 
+            top: isSidebarVisible ? '37px' : '40px',
         }}
-      >
-        <img src="/menu_open.svg" alt="Toggle Menu" style={{ width: '41px', height: '41px' }} />
-      </button>
-
-      {/* 3. FLOATING HOME BUTTON */}
-      <button 
-        onClick={() => navigate('/')}
-        className="absolute z-50 flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] bg-[#121825] shadow-xl hover:brightness-110 active:scale-95"
-        style={{ 
-          width: isSidebarVisible ? '41px' : '66px', 
-          height: isSidebarVisible ? '41px' : '66px', 
-          borderRadius: '26px',
-          left: isSidebarVisible ? '31px' : '40px',
-          bottom: isSidebarVisible ? '42px' : '40px',
-        }}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="41" height="41" viewBox="0 0 41 41" fill="none">
-          <path d="M15.375 37.5834V20.5001H25.625V37.5834M5.125 15.3751L20.5 3.41675L35.875 15.3751V34.1667C35.875 35.0729 35.515 35.9419 34.8743 36.5827C34.2335 37.2234 33.3645 37.5834 32.4583 37.5834H8.54167C7.63551 37.5834 6.76647 37.2234 6.12572 36.5827C5.48497 35.9419 5.125 35.0729 5.125 34.1667V15.3751Z" stroke="#5E6E81" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+        >
+        {/* The Glow Effect */}
+        <span className="absolute inset-0 transition-opacity duration-300 rounded-full opacity-0 blur-md bg-[#A9BDE8]/20 group-hover:opacity-100" />
+        
+        <svg 
+            width="41" 
+            height="41" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            xmlns="http://www.w3.org/2000/svg"
+            className="relative z-10 transition-colors duration-200"
+        >
+            <path 
+            d="M3 12H21M3 6H21M3 18H16" 
+            className="stroke-[#5E6E81] group-hover:stroke-[#EBF0FF]" 
+            strokeWidth="2.5" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+            />
         </svg>
-      </button>
+        </button>
+
+        {/* 3. FLOATING HOME BUTTON */}
+        <button 
+        onClick={() => navigate('/')}
+        className="absolute z-50 flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] bg-[#121825] shadow-xl hover:brightness-125 active:scale-95 cursor-pointer group"
+        style={{ 
+            width: isSidebarVisible ? '41px' : '66px', 
+            height: isSidebarVisible ? '41px' : '66px', 
+            borderRadius: '26px',
+            left: isSidebarVisible ? '31px' : '40px',
+            bottom: isSidebarVisible ? '42px' : '40px',
+        }}
+        >
+        {/* The Glow Effect */}
+        <span className="absolute inset-0 transition-opacity duration-300 rounded-full opacity-0 blur-md bg-[#A9BDE8]/20 group-hover:opacity-100" />
+        
+        <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="41" 
+            height="41" 
+            viewBox="0 0 41 41" 
+            fill="none"
+            className="relative z-10 transition-colors duration-200"
+        >
+            <path 
+            d="M15.375 37.5834V20.5001H25.625V37.5834M5.125 15.3751L20.5 3.41675L35.875 15.3751V34.1667C35.875 35.0729 35.515 35.9419 34.8743 36.5827C34.2335 37.2234 33.3645 37.5834 32.4583 37.5834H8.54167C7.63551 37.5834 6.76647 37.2234 6.12572 36.5827C5.48497 35.9419 5.125 35.0729 5.125 34.1667V15.3751Z" 
+            className="stroke-[#5E6E81] group-hover:stroke-[#EBF0FF]" 
+            strokeWidth="3" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+            />
+        </svg>
+        </button>
 
       {/* 4. SIDEBAR BODY */}
       <aside 
@@ -225,14 +260,20 @@ export default function ArenaPage() {
         className="absolute z-10 flex items-center justify-center overflow-hidden transition-all duration-500 border rounded-[26px] border-[#2C3A50]/20 bg-[#0A0E1A]/40 backdrop-blur-sm"
         style={{ left: isSidebarVisible ? '307px' : '25px', top: '25px', right: '25px', bottom: '25px' }}
       >
-        {/* Replace the text with the 3D Canvas component */}
-        {activeVisualization === "Constellation" ? (
-          <Constellation selectedModels={selectedModels} />
-        ) : (
-          <p className="text-[#5E6E81] font-['Inter'] animate-pulse text-lg tracking-widest uppercase">
-            {activeVisualization} View (Coming Soon)
-          </p>
-        )}
+        {(() => {
+          switch (activeVisualization) {
+            case "Constellation":
+              return <Constellation selectedModels={selectedModels} />;
+            case "Heatmap":
+              return <Heatmap selectedModels={selectedModels} />;
+            default:
+              return (
+                <p className="text-[#5E6E81] font-['Inter'] animate-pulse text-lg tracking-widest uppercase">
+                  {activeVisualization} View (Coming Soon)
+                </p>
+              );
+          }
+        })()}
       </main>
     </div>
   );
