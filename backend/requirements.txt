@@ -5,5 +5,5 @@ python-dotenv
 modal
 openai
 anthropic
-google-generativeai
+google-genai
 httpx
