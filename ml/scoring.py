@@ -29,12 +29,27 @@ def compute_verification_score(
 def compute_trust_score(
     agreement_score: float,
     verification_score: float,
-    agreement_weight: float,
-    verification_weight: float,
+    independence_score: float,
+    consistency_score: float,
 ) -> int:
-    """trust_score = round(aw * agreement + vw * clamp(verification, 0, 100))."""
+    """
+    trust_score = round(
+        0.35 * agreement + 
+        0.35 * clamp(verification, 0, 100) + 
+        0.15 * clamp(independence, 0, 100) + 
+        0.15 * clamp(consistency, 0, 100)
+    )
+    """
     clamped_verification = clamp(verification_score, 0.0, 100.0)
-    raw = agreement_weight * agreement_score + verification_weight * clamped_verification
+    clamped_independence = clamp(independence_score, 0.0, 100.0)
+    clamped_consistency = clamp(consistency_score, 0.0, 100.0)
+
+    raw = (
+        (0.35 * agreement_score) +
+        (0.35 * clamped_verification) +
+        (0.15 * clamped_independence) +
+        (0.15 * clamped_consistency)
+    )
     return round(clamp(raw, 0.0, 100.0))
 
 
