@@ -8,7 +8,7 @@ interface PipelineProps {
 
 const MODEL_COLORS = {
   'GPT-4': '#10A37F',
-  'Gemini': '#4285F4', 
+  'Gemini': '#428F54', 
   'Claude': '#E8825A',
   'Llama': '#A855F7',
   'Mistral': '#F59E0B'
@@ -78,10 +78,6 @@ export default function Pipeline({ selectedModels }: PipelineProps) {
 
   return (
     <div className="flex flex-col items-center w-full h-full p-8 overflow-hidden bg-[#0A0E1A]">
-      <div className="w-full max-w-6xl mb-8 shrink-0">
-        <h2 className="text-2xl font-bold text-[#EBF0FF] font-['Inter'] mb-1">Information Flow Pipeline</h2>
-        <p className="text-[#90A2B3] text-sm">Visualizing extraction, semantic clustering, and verification gates.</p>
-      </div>
 
       <div className="relative w-full max-w-6xl flex-1 bg-[#121825] border border-[#2C3A50] rounded-2xl shadow-2xl p-4 overflow-hidden">
         

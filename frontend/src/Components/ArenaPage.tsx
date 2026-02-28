@@ -4,6 +4,7 @@ import Constellation from './Constellation';
 import Heatmap from './Heatmap';
 import KnowledgeDeck from './KnowledgeDeck';
 import Pipeline from './Pipeline';
+import EvidenceNetwork from './EvidenceNetwork';
 
 export default function ArenaPage() {
   const navigate = useNavigate();
@@ -272,6 +273,8 @@ export default function ArenaPage() {
               return <KnowledgeDeck selectedModels={selectedModels} />;
             case "Pipeline":
               return <Pipeline selectedModels={selectedModels} />;
+            case "Evidence Network":
+              return <EvidenceNetwork selectedModels={selectedModels} />;
             default:
               return (
                 <p className="text-[#5E6E81] font-['Inter'] animate-pulse text-lg tracking-widest uppercase">
