@@ -2,13 +2,6 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, BrainCircuit, Link as LinkIcon, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 
-// TruthLens Palette
-const TRUST_COLORS: Record<string, string> = {
-  VerifiedSafe: '#00D68F',
-  CautionUnverified: '#FFB020',
-  Rejected: '#FF4757',
-};
-
 const MODEL_COLORS: Record<string, string> = {
   'GPT-4 (OpenAI)': '#10A37F',
   'Gemini (Google)': '#428F54',
