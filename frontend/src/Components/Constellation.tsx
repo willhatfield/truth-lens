@@ -3,7 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sphere, Line, useCursor, Text, Float } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as THREE from 'three';
-import { AnalysisResult } from '../types';
+import type { AnalysisResult } from '../types';
 
 // --- STYLING CONSTANTS ---
 const TRUST_COLORS: Record<string, string> = {
@@ -261,7 +261,7 @@ interface ConstellationProps {
 
 export default function Constellation({ selectedModels, result }: ConstellationProps) {
   // Derive real cluster hub and claim node positions from result
-  const realNodes = useMemo(() => {
+  const _realNodes = useMemo(() => {
     if (!result) return null;
     const { clusters, claims, coords3d, cluster_scores } = result;
 

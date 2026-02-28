@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ShieldCheck, Activity, ChevronRight, ExternalLink, BrainCircuit, Database, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AnalysisResult } from '../types';
+import type { AnalysisResult } from '../types';
 
 interface SynthesisViewProps {
   onOpenVisualizer: (view: string) => void;

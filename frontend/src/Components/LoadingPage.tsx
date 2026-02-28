@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { WS_BASE } from '../config';
-import { AnalysisResult } from '../types';
+import type { AnalysisResult } from '../types';
 
 const STAGE_MAP: Record<string, { message: string; progress: number }> = {
   MODEL_STARTED:  { message: "consulting AIs...",      progress: 10 },

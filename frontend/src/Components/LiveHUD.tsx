@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Activity, ShieldCheck, Database, Zap, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AnalysisResult } from '../types';
+import type { AnalysisResult } from '../types';
 
 export default function LiveHUD({ result }: { result: AnalysisResult | null }) {
   const [isExpanded, setIsExpanded] = useState(false);

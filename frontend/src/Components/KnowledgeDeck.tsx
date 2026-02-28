@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, BrainCircuit, Link as LinkIcon, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
-import { AnalysisResult } from '../types';
+import type { AnalysisResult } from '../types';
 
 const MODEL_COLORS: Record<string, string> = {
   'GPT-4 (OpenAI)': '#10A37F',
@@ -56,7 +56,7 @@ const mockData = {
 export default function KnowledgeDeck({ selectedModels, result }: KnowledgeDeckProps) {
   const queryContext = result?.prompt ?? null;
 
-  const modelResponses = useMemo(() => {
+  const _modelResponses = useMemo(() => {
     if (!result) return null;
     return result.models.map(m => ({
       modelId: m.model_id,
@@ -64,7 +64,7 @@ export default function KnowledgeDeck({ selectedModels, result }: KnowledgeDeckP
     }));
   }, [result]);
 
-  const citedEvidence = useMemo(() => {
+  const _citedEvidence = useMemo(() => {
     if (!result) return null;
     return result.nli_results
       .filter(r => r.label === 'entailment')

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ArrowUp } from 'lucide-react';
-import { AnalysisResult } from '../types';
+import type { AnalysisResult } from '../types';
 
 const TRUST_COLORS: Record<string, string> = {
   VerifiedSafe: '#00D68F',

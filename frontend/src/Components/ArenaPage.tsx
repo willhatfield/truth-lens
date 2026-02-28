@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { AnalysisResult } from '../types';
+import type { AnalysisResult } from '../types';
 import { Clock, X, ShieldCheck, AlertCircle, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Constellation from './Constellation';
