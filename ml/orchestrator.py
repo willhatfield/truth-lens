@@ -8,7 +8,6 @@ import json
 import os
 
 from llm_providers import call_all_llms
-from safe_answer import build_safe_answer
 from model_metrics import compute_model_metrics
 from evidence import retrieve_evidence
 
@@ -30,7 +29,6 @@ _STAGES = [
     "rerank_evidence",
     "nli_verify",
     "score_clusters",
-    "safe_answer",
     "model_metrics",
 ]
 
@@ -191,7 +189,7 @@ def _neutral_nli_results(pairs):
 
 def _build_final_result(analysis_id, prompt, models, claims, clusters,
                         evidence, nli_results, cluster_scores, coords3d,
-                        safe_answer, model_metrics_list, warnings):
+                        model_metrics_list, warnings):
     """Build the flat AnalysisResult dict per spec section 7."""
     return {
         "schema_version": "1.0",
@@ -204,7 +202,6 @@ def _build_final_result(analysis_id, prompt, models, claims, clusters,
         "nli_results": nli_results,
         "cluster_scores": cluster_scores,
         "coords3d": coords3d,
-        "safe_answer": safe_answer,
         "model_metrics": model_metrics_list,
         "warnings": warnings[:_MAX_WARNINGS],
     }
@@ -448,32 +445,6 @@ def _run_score_stage(analysis_id, claims, clusters,
     return cluster_scores
 
 
-def _run_safe_answer_stage(analysis_id, clusters,
-                           cluster_scores, state):
-    """Stage 10: Build safe answer."""
-    _write_progress(analysis_id, "safe_answer",
-                    state["models_completed"],
-                    state["stages_completed"],
-                    state["warnings"], state["results_dir"])
-
-    cluster_dicts = []
-    for i in range(min(len(clusters), _MAX_CLUSTER_CAP)):
-        cl = clusters[i]
-        cluster_dicts.append({
-            "cluster_id": cl["cluster_id"],
-            "claim_ids": cl["claim_ids"],
-            "representative_claim_id": cl.get(
-                "representative_claim_id", ""),
-            "representative_text": cl.get("representative_text", ""),
-        })
-
-    safe_answer_result, sa_warnings = build_safe_answer(
-        cluster_dicts, cluster_scores)
-    state["warnings"].extend(sa_warnings[:_MAX_WARNINGS])
-    state["stages_completed"].append("safe_answer")
-    return safe_answer_result
-
-
 def _run_metrics_stage(analysis_id, claims, cluster_scores,
                        clusters, state):
     """Stage 11: Compute model metrics."""
@@ -492,7 +463,7 @@ def _early_done(analysis_id, prompt, models_output, claims,
     """Build and write an early-return 'done' result (no ML output)."""
     result = _build_final_result(
         analysis_id, prompt, models_output, claims, [], [],
-        [], [], {}, None, [], warnings)
+        [], [], {}, [], warnings)
     result["status"] = "done"
     _write_result(analysis_id, result, results_dir)
     return result
@@ -519,16 +490,13 @@ def _run_ml_stages(analysis_id, prompt, models_output, claims,
         analysis_id, claims, clusters, nli_results,
         ml_functions, state)
 
-    safe_answer_result = _run_safe_answer_stage(
-        analysis_id, clusters, cluster_scores, state)
-
     metrics = _run_metrics_stage(
         analysis_id, claims, cluster_scores, clusters, state)
 
     result = _build_final_result(
         analysis_id, prompt, models_output, claims, clusters,
         [], nli_results, cluster_scores, coords3d,
-        safe_answer_result, metrics, state["warnings"])
+        metrics, state["warnings"])
     result["status"] = "done"
     _write_result(analysis_id, result, results_dir)
     _write_done_progress(
