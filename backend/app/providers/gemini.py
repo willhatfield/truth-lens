@@ -13,26 +13,22 @@ def _generate_gemini_text(prompt: str, model: str, api_key: str) -> str:
         model=model,
         contents=prompt,
     )
-    return response.text or ""
+    text = response.text or ""
+    if not text:
+        raise RuntimeError("Gemini returned empty response")
+    return text
 
 
 async def stream_gemini(prompt: str) -> AsyncIterator[str]:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        msg = "[gemini unavailable: set GEMINI_API_KEY]"
-        async for chunk in stream_static_text(msg):
-            yield chunk
-        return
+        raise RuntimeError("GEMINI_API_KEY is not set")
 
-    try:
-        text = await asyncio.to_thread(
-            _generate_gemini_text,
-            prompt,
-            "gemini-2.0-flash",
-            api_key,
-        )
-        async for chunk in stream_static_text(text):
-            yield chunk
-    except Exception as exc:
-        async for chunk in stream_static_text(f"[gemini streaming failed] {exc}"):
-            yield chunk
+    text = await asyncio.to_thread(
+        _generate_gemini_text,
+        prompt,
+        "gemini-2.0-flash",
+        api_key,
+    )
+    async for chunk in stream_static_text(text):
+        yield chunk

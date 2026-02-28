@@ -26,7 +26,7 @@ def _candidate_models() -> list[str]:
     if configured:
         return [configured]
     return [
-        "claude-sonnet-4-20250514",
+        "claude-sonnet-4-5",
         "claude-3-7-sonnet-latest",
         "claude-3-5-sonnet-latest",
     ]
@@ -35,10 +35,7 @@ def _candidate_models() -> list[str]:
 async def stream_claude(prompt: str) -> AsyncIterator[str]:
     api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY")
     if not api_key:
-        msg = "[claude unavailable: set ANTHROPIC_API_KEY or CLAUDE_API_KEY]"
-        async for chunk in stream_static_text(msg):
-            yield chunk
-        return
+        raise RuntimeError("ANTHROPIC_API_KEY or CLAUDE_API_KEY is not set")
 
     last_exc: Exception | None = None
     for model_name in _candidate_models():
@@ -56,11 +53,6 @@ async def stream_claude(prompt: str) -> AsyncIterator[str]:
             last_exc = exc
             if "not_found_error" in str(exc):
                 continue
-            async for chunk in stream_static_text(f"[claude streaming failed] {exc}"):
-                yield chunk
-            return
+            raise
 
-    async for chunk in stream_static_text(
-        f"[claude streaming failed] {last_exc or 'no usable Claude model configured'}"
-    ):
-        yield chunk
+    raise RuntimeError(f"No usable Claude model; last error: {last_exc}")
