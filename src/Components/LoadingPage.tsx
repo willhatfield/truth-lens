@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const loadingMessages = [
   "gathering information...",
@@ -43,11 +43,22 @@ export default function LoadingPage() {
       {/* Main Content Wrapper - Locked to 817px */}
       <div className="flex flex-col items-start w-[817px]">
         
-        {/* Dynamic Loading Text */}
+        {/* Dynamic Loading Text with Pulse Animation */}
         <div className="flex items-center h-[71px]">
-          <p style={{ color: '#CCD8FF', fontFamily: 'Inter', fontSize: '20px' }}>
-            {loadingMessages[messageIndex]}
-          </p>
+          <motion.div
+            key={messageIndex} // Resets animation on text change
+            initial={{ opacity: 0.4 }}
+            animate={{ opacity: [0.4, 1, 0.4] }}
+            transition={{ 
+              duration: 2, 
+              repeat: Infinity, 
+              ease: "easeInOut" 
+            }}
+          >
+            <p style={{ color: '#CCD8FF', fontFamily: 'Inter', fontSize: '20px' }}>
+              {loadingMessages[messageIndex]}
+            </p>
+          </motion.div>
         </div>
 
         {/* 70px Percentage Display */}
@@ -71,7 +82,7 @@ export default function LoadingPage() {
                 damping: 15
               }}
               style={{ 
-                width: '12px', // Slightly wider for a premium look
+                width: '12px',
                 backgroundColor: i < progress ? '#A9BDE8' : '#1E2636',
                 borderRadius: '26px'
               }}

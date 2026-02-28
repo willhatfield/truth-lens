@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Constellation from './Constellation';
 
 export default function ArenaPage() {
   const navigate = useNavigate();
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   
-  // Accordion States
+  // Active Visualization State
+  const [activeVisualization, setActiveVisualization] = useState("Constellation");
+  
+  // Accordion States - all set to false initially so they are collapsed
   const [showVisualizationMenu, setShowVisualizationMenu] = useState(false);
-  const [showModels, setShowModels] = useState(true);
-  const [showTrust, setShowTrust] = useState(true);
+  const [showModels, setShowModels] = useState(false);
+  const [showTrust, setShowTrust] = useState(false);
   
   // State for AI Model Toggles
   const [selectedModels, setSelectedModels] = useState(['GPT-4 (OpenAI)', 'Gemini (Google)', 'Claude (Anthropic)', 'Llama 3 (Meta)', 'Kimi (Moonshot)']);
@@ -113,11 +117,26 @@ export default function ArenaPage() {
             </button>
             {showVisualizationMenu && (
               <div className="flex flex-col items-center py-2 space-y-1 shadow-xl bg-[#586983]" style={{ width: '248px', borderRadius: '0 0 10px 10px' }}>
-                {navItems.map((item) => (
-                  <div key={item} className="flex w-[200px] h-[26px] justify-start items-center px-2 cursor-pointer group">
-                    <span className="text-[#EBF0FF] group-hover:text-[#1A2335] transition-colors text-[14px]">{item}</span>
-                  </div>
-                ))}
+                {navItems.map((item) => {
+                  const isSelected = activeVisualization === item;
+                  return (
+                    <div 
+                      key={item} 
+                      onClick={() => setActiveVisualization(item)}
+                      className={`flex w-[210px] h-[30px] justify-start items-center px-3 cursor-pointer group rounded-md transition-all duration-200 ${
+                        isSelected ? 'bg-[#34445A]/60' : 'hover:bg-[#34445A]/30'
+                      }`}
+                    >
+                      <span className={`transition-colors text-[14px] ${
+                        isSelected 
+                          ? 'text-[#A9BDE8] font-semibold' 
+                          : 'text-[#EBF0FF] font-normal group-hover:text-[#A9BDE8]'
+                      }`}>
+                        {item}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -130,7 +149,6 @@ export default function ArenaPage() {
               style={{ width: '248px', height: '38px', borderRadius: showModels ? '10px 10px 0 0' : '10px' }}
             >
               <div className="flex items-center space-x-3">
-                {/* Caret now visible */}
                 <svg width="14" height="10" viewBox="0 0 18 12" fill="none" style={{ transform: showModels ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }}>
                   <path d="M1 1L9 10L17 1" stroke="#90A2B3" strokeWidth="2.5" strokeLinecap="round"/>
                 </svg>
@@ -179,7 +197,6 @@ export default function ArenaPage() {
               style={{ width: '248px', height: '38px', borderRadius: showTrust ? '10px 10px 0 0' : '10px' }}
             >
               <div className="flex items-center space-x-3">
-                {/* Caret now visible */}
                 <svg width="14" height="10" viewBox="0 0 18 12" fill="none" style={{ transform: showTrust ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }}>
                   <path d="M1 1L9 10L17 1" stroke="#90A2B3" strokeWidth="2.5" strokeLinecap="round"/>
                 </svg>
@@ -208,9 +225,14 @@ export default function ArenaPage() {
         className="absolute z-10 flex items-center justify-center overflow-hidden transition-all duration-500 border rounded-[26px] border-[#2C3A50]/20 bg-[#0A0E1A]/40 backdrop-blur-sm"
         style={{ left: isSidebarVisible ? '307px' : '25px', top: '25px', right: '25px', bottom: '25px' }}
       >
-        <p className="text-[#5E6E81] font-['Inter'] animate-pulse text-lg tracking-widest uppercase">
-          {isSidebarVisible ? 'Initializing Neural Net...' : 'Immersive View'}
-        </p>
+        {/* Replace the text with the 3D Canvas component */}
+        {activeVisualization === "Constellation" ? (
+          <Constellation selectedModels={selectedModels} />
+        ) : (
+          <p className="text-[#5E6E81] font-['Inter'] animate-pulse text-lg tracking-widest uppercase">
+            {activeVisualization} View (Coming Soon)
+          </p>
+        )}
       </main>
     </div>
   );
