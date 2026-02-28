@@ -41,7 +41,7 @@ _ALLOWED_TRANSITION_PREFIXES = [
 ]
 
 # Prefixes valid at sentence index 0 (openers only, no contrastive)
-_OPENER_PREFIXES = {"Overall,", "Meanwhile,", "In addition,", "Additionally,"}
+_OPENER_PREFIXES = {""}
 
 _FALLBACK_TEXT = (
     "There is insufficient verified support to provide a reliable summary."
