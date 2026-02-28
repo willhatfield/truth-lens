@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 
@@ -126,6 +126,7 @@ async def run_ml_pipeline(
     analysis_id: str,
     model_outputs: list[dict[str, str]],
     passages_by_claim: dict[str, list[dict[str, str]]] | None = None,
+    retrieve_fn: Callable | None = None,
 ) -> dict[str, Any]:
     filtered_responses = []
     for item in model_outputs:
@@ -193,7 +194,10 @@ async def run_ml_pipeline(
     cluster, umap = await asyncio.gather(cluster_task, umap_task)
 
     # If retrieval is not wired yet, run with empty evidence lists (valid but less useful).
-    passages_by_claim = passages_by_claim or {}
+    if retrieve_fn is not None:
+        passages_by_claim = await retrieve_fn(claims)
+    else:
+        passages_by_claim = passages_by_claim or {}
     rerank_items = []
     for c in claims:
         cid = str(c.get("claim_id", ""))
