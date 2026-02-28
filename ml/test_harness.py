@@ -6,10 +6,13 @@ Runs: extract_claims -> embed_claims -> cluster_claims -> rerank_evidence_batch
 Asserts every response is a valid Pydantic model with no warnings.
 
 Usage:
+    pytest test_harness.py -v
     python test_harness.py
 """
 
 import sys
+
+import pytest
 
 from schemas import (
     ExtractClaimsResponse, Claim,
@@ -32,10 +35,18 @@ NUM_DIMS = 8
 NUM_PASSAGES = 4
 TOP_K = 3
 MAX_PIPELINE_PHASES = 10
+CLAIM_TEXTS = [
+    "The sky is blue.",
+    "Water boils at 100C at sea level.",
+    "The Earth orbits the Sun.",
+    "Photosynthesis requires sunlight.",
+    "Iron is a metal.",
+]
+NLI_LABELS = ["entailment", "neutral", "contradiction"]
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Shared helpers
 # ---------------------------------------------------------------------------
 
 def _make_fake_claim(analysis_id: str, model_id: str, text: str) -> Claim:
@@ -57,67 +68,40 @@ def _fake_vector(index: int, dim: int) -> list:
     return row
 
 
+def _make_passage_ids(count: int) -> list:
+    """Generate a list of fake passage IDs with p_ prefix."""
+    pids: list = []
+    for i in range(count):
+        pids.append(f"p_{i:04d}")
+    return pids
+
+
 # ---------------------------------------------------------------------------
-# Phase 1: extract_claims
+# Build helpers -- each constructs one pipeline phase response
 # ---------------------------------------------------------------------------
 
-def test_extract_phase() -> ExtractClaimsResponse:
-    """Simulate extract_claims output with Claim objects."""
+def _build_extract_response() -> ExtractClaimsResponse:
+    """Build the ExtractClaimsResponse from fake claim texts."""
     claims: list = []
-    texts = [
-        "The sky is blue.",
-        "Water boils at 100C at sea level.",
-        "The Earth orbits the Sun.",
-        "Photosynthesis requires sunlight.",
-        "Iron is a metal.",
-    ]
-    for i in range(len(texts)):
+    for i in range(len(CLAIM_TEXTS)):
         mid = MODEL_IDS[i % len(MODEL_IDS)]
-        claim = _make_fake_claim(ANALYSIS_ID, mid, texts[i])
+        claim = _make_fake_claim(ANALYSIS_ID, mid, CLAIM_TEXTS[i])
         claims.append(claim)
-
-    resp = ExtractClaimsResponse(
-        analysis_id=ANALYSIS_ID,
-        claims=claims,
-    )
-    assert len(resp.warnings) == 0
-    assert len(resp.claims) == len(texts)
-    for j in range(len(resp.claims)):
-        assert resp.claims[j].claim_id.startswith("c_")
-        assert len(resp.claims[j].claim_text) > 0
-    print("  [PASS] extract phase")
-    return resp
+    return ExtractClaimsResponse(analysis_id=ANALYSIS_ID, claims=claims)
 
 
-# ---------------------------------------------------------------------------
-# Phase 2: embed_claims
-# ---------------------------------------------------------------------------
-
-def test_embed_phase(claims: list) -> EmbedClaimsResponse:
-    """Simulate embed_claims output with Dict-based vectors."""
+def _build_embed_response(claims: list) -> EmbedClaimsResponse:
+    """Build the EmbedClaimsResponse from a list of Claim objects."""
     vectors: dict = {}
     for i in range(len(claims)):
         cid = claims[i].claim_id
         vectors[cid] = _fake_vector(i, NUM_DIMS)
-
-    resp = EmbedClaimsResponse(
+    return EmbedClaimsResponse(
         analysis_id=ANALYSIS_ID,
         vectors=vectors,
         dim=NUM_DIMS,
     )
-    assert len(resp.warnings) == 0
-    assert len(resp.vectors) == len(claims)
-    assert resp.dim == NUM_DIMS
-    for cid_key in resp.vectors:
-        assert cid_key.startswith("c_")
-        assert len(resp.vectors[cid_key]) == NUM_DIMS
-    print("  [PASS] embed phase")
-    return resp
 
-
-# ---------------------------------------------------------------------------
-# Phase 3: cluster_claims
-# ---------------------------------------------------------------------------
 
 def _build_claims_metadata(claims: list) -> dict:
     """Build a Dict[str, ClaimMetadata] from a list of Claim objects."""
@@ -131,69 +115,36 @@ def _build_claims_metadata(claims: list) -> dict:
     return metadata
 
 
-def test_cluster_phase(
+def _build_cluster_response(
     vectors: dict,
     claims_metadata: dict,
 ) -> ClusterClaimsResponse:
-    """Simulate cluster_claims output with Cluster objects."""
+    """Build the ClusterClaimsResponse by splitting claim IDs into two groups."""
     claim_ids = list(vectors.keys())
     half = len(claim_ids) // 2
     group_a = claim_ids[:half]
     group_b = claim_ids[half:]
 
-    cluster_a_id = make_cluster_id(group_a)
-    cluster_b_id = make_cluster_id(group_b)
-
-    rep_a_id = group_a[0]
-    rep_b_id = group_b[0]
-
     cluster_a = Cluster(
-        cluster_id=cluster_a_id,
+        cluster_id=make_cluster_id(group_a),
         claim_ids=group_a,
-        representative_claim_id=rep_a_id,
-        representative_text=claims_metadata[rep_a_id].claim_text,
+        representative_claim_id=group_a[0],
+        representative_text=claims_metadata[group_a[0]].claim_text,
     )
     cluster_b = Cluster(
-        cluster_id=cluster_b_id,
+        cluster_id=make_cluster_id(group_b),
         claim_ids=group_b,
-        representative_claim_id=rep_b_id,
-        representative_text=claims_metadata[rep_b_id].claim_text,
+        representative_claim_id=group_b[0],
+        representative_text=claims_metadata[group_b[0]].claim_text,
     )
-
-    resp = ClusterClaimsResponse(
+    return ClusterClaimsResponse(
         analysis_id=ANALYSIS_ID,
         clusters=[cluster_a, cluster_b],
     )
-    assert len(resp.warnings) == 0
-    assert len(resp.clusters) == 2
-    for k in range(len(resp.clusters)):
-        assert resp.clusters[k].cluster_id.startswith("cl_")
-        assert len(resp.clusters[k].claim_ids) >= 1
-
-    # Verify all claim_ids accounted for
-    all_ids: list = []
-    for k in range(len(resp.clusters)):
-        for cid in resp.clusters[k].claim_ids:
-            all_ids.append(cid)
-    assert sorted(all_ids) == sorted(claim_ids)
-    print("  [PASS] cluster phase")
-    return resp
 
 
-# ---------------------------------------------------------------------------
-# Phase 4: rerank_evidence_batch
-# ---------------------------------------------------------------------------
-
-def _make_passage_ids(count: int) -> list:
-    """Generate a list of fake passage IDs with p_ prefix."""
-    pids: list = []
-    for i in range(count):
-        pids.append(f"p_{i:04d}")
-    return pids
-
-
-def test_rerank_phase() -> RerankEvidenceBatchResponse:
-    """Simulate rerank_evidence_batch output with ClaimRanking objects."""
+def _build_rerank_response() -> RerankEvidenceBatchResponse:
+    """Build the RerankEvidenceBatchResponse with descending scores."""
     fake_claim_id = make_claim_id(ANALYSIS_ID, MODEL_IDS[0], "The sky is blue.")
     passage_ids = _make_passage_ids(NUM_PASSAGES)
 
@@ -209,54 +160,32 @@ def test_rerank_phase() -> RerankEvidenceBatchResponse:
         ordered_passage_ids=ordered_pids,
         scores=scores,
     )
-    resp = RerankEvidenceBatchResponse(
+    return RerankEvidenceBatchResponse(
         analysis_id=ANALYSIS_ID,
         rankings=[ranking],
     )
-    assert len(resp.warnings) == 0
-    assert len(resp.rankings) == 1
-    assert resp.rankings[0].claim_id.startswith("c_")
-    assert len(resp.rankings[0].ordered_passage_ids) == TOP_K
 
-    # Scores should be descending
-    prev_score = 999.0
-    for j in range(len(resp.rankings[0].ordered_passage_ids)):
-        pid = resp.rankings[0].ordered_passage_ids[j]
-        current_score = resp.rankings[0].scores[pid]
-        assert current_score <= prev_score
-        prev_score = current_score
-    print("  [PASS] rerank phase")
-    return resp
-
-
-# ---------------------------------------------------------------------------
-# Phase 5: nli_verify_batch
-# ---------------------------------------------------------------------------
 
 def _build_nli_results(claims: list) -> list:
     """Build fake NliResultOutput objects for a list of Claim objects."""
-    labels = ["entailment", "neutral", "contradiction"]
     results: list = []
     passage_id = "p_0000"
     for i in range(len(claims)):
         cid = claims[i].claim_id
         pair_id = make_pair_id(cid, passage_id)
-        label = labels[i % len(labels)]
+        label = NLI_LABELS[i % len(NLI_LABELS)]
         probs: dict = {
             "entailment": 0.33,
             "neutral": 0.34,
             "contradiction": 0.33,
         }
-        # Boost the selected label
         probs[label] = 0.70
-        # Reduce the others proportionally
         remaining_labels: list = []
-        for lbl in labels:
+        for lbl in NLI_LABELS:
             if lbl != label:
                 remaining_labels.append(lbl)
         for j in range(len(remaining_labels)):
             probs[remaining_labels[j]] = 0.15
-
         result = NliResultOutput(
             pair_id=pair_id,
             claim_id=cid,
@@ -268,31 +197,19 @@ def _build_nli_results(claims: list) -> list:
     return results
 
 
-def test_nli_phase(claims: list) -> NliVerifyBatchResponse:
-    """Simulate nli_verify_batch output with NliResultOutput objects."""
+def _build_nli_response(claims: list) -> NliVerifyBatchResponse:
+    """Build the NliVerifyBatchResponse from a list of Claim objects."""
     results = _build_nli_results(claims)
-
-    resp = NliVerifyBatchResponse(
+    return NliVerifyBatchResponse(
         analysis_id=ANALYSIS_ID,
         results=results,
     )
-    assert len(resp.warnings) == 0
-    assert len(resp.results) == len(claims)
-    for i in range(len(resp.results)):
-        r = resp.results[i]
-        assert r.pair_id.startswith("nli_")
-        assert r.claim_id.startswith("c_")
-        assert r.label in ("entailment", "neutral", "contradiction")
-        assert len(r.probs) == 3
-    print("  [PASS] NLI phase")
-    return resp
 
 
-# ---------------------------------------------------------------------------
-# Phase 6: score_clusters
-# ---------------------------------------------------------------------------
-
-def _compute_cluster_agreement(cluster: Cluster, claims_metadata: dict) -> AgreementDetail:
+def _compute_cluster_agreement(
+    cluster: Cluster,
+    claims_metadata: dict,
+) -> AgreementDetail:
     """Build AgreementDetail for a single cluster."""
     supporting: list = []
     seen_models: dict = {}
@@ -358,19 +275,18 @@ def _compute_fake_trust(
     return (trust_score, verdict)
 
 
-def test_score_phase(
+def _build_score_response(
     clusters: list,
     claims_metadata: dict,
     nli_results: list,
 ) -> ScoreClustersResponse:
-    """Simulate score_clusters output with ClusterScore objects."""
+    """Build the ScoreClustersResponse from clusters and NLI results."""
     cluster_scores: list = []
     for i in range(len(clusters)):
         cluster = clusters[i]
         agreement = _compute_cluster_agreement(cluster, claims_metadata)
         verification = _find_best_nli_for_cluster(cluster, nli_results)
         trust_score, verdict = _compute_fake_trust(agreement, verification)
-
         cs = ClusterScore(
             cluster_id=cluster.cluster_id,
             trust_score=trust_score,
@@ -379,45 +295,222 @@ def test_score_phase(
             verification=verification,
         )
         cluster_scores.append(cs)
-
-    resp = ScoreClustersResponse(
+    return ScoreClustersResponse(
         analysis_id=ANALYSIS_ID,
         scores=cluster_scores,
     )
-    assert len(resp.warnings) == 0
-    assert len(resp.scores) == len(clusters)
-    for i in range(len(resp.scores)):
-        s = resp.scores[i]
-        assert s.cluster_id.startswith("cl_")
-        assert 0 <= s.trust_score <= 100
-        assert s.verdict in ("SAFE", "CAUTION", "REJECT")
-    print("  [PASS] score phase")
-    return resp
 
 
-# ---------------------------------------------------------------------------
-# Phase 7: compute_umap
-# ---------------------------------------------------------------------------
-
-def test_umap_phase(vectors: dict) -> ComputeUmapResponse:
-    """Simulate compute_umap output with Dict-based coords3d."""
+def _build_umap_response(vectors: dict) -> ComputeUmapResponse:
+    """Build the ComputeUmapResponse with fake 3D coordinates."""
     coords: dict = {}
     idx = 0
     for cid in vectors:
         coords[cid] = [float(idx) * 0.1, float(idx) * 0.2, float(idx) * 0.3]
         idx += 1
-
-    resp = ComputeUmapResponse(
+    return ComputeUmapResponse(
         analysis_id=ANALYSIS_ID,
         coords3d=coords,
     )
-    assert len(resp.warnings) == 0
-    assert len(resp.coords3d) == len(vectors)
-    for cid_key in resp.coords3d:
+
+
+# ---------------------------------------------------------------------------
+# Pytest fixtures -- chain pipeline phases
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def extract_resp() -> ExtractClaimsResponse:
+    """Fixture: Phase 1 extract response."""
+    return _build_extract_response()
+
+
+@pytest.fixture
+def claims(extract_resp: ExtractClaimsResponse) -> list:
+    """Fixture: list of Claim objects from extract phase."""
+    return extract_resp.claims
+
+
+@pytest.fixture
+def embed_resp(claims: list) -> EmbedClaimsResponse:
+    """Fixture: Phase 2 embed response."""
+    return _build_embed_response(claims)
+
+
+@pytest.fixture
+def claims_metadata(claims: list) -> dict:
+    """Fixture: Dict[str, ClaimMetadata] for cluster/score phases."""
+    return _build_claims_metadata(claims)
+
+
+@pytest.fixture
+def cluster_resp(
+    embed_resp: EmbedClaimsResponse,
+    claims_metadata: dict,
+) -> ClusterClaimsResponse:
+    """Fixture: Phase 3 cluster response."""
+    return _build_cluster_response(embed_resp.vectors, claims_metadata)
+
+
+@pytest.fixture
+def rerank_resp() -> RerankEvidenceBatchResponse:
+    """Fixture: Phase 4 rerank response."""
+    return _build_rerank_response()
+
+
+@pytest.fixture
+def nli_resp(claims: list) -> NliVerifyBatchResponse:
+    """Fixture: Phase 5 NLI response."""
+    return _build_nli_response(claims)
+
+
+@pytest.fixture
+def score_resp(
+    cluster_resp: ClusterClaimsResponse,
+    claims_metadata: dict,
+    nli_resp: NliVerifyBatchResponse,
+) -> ScoreClustersResponse:
+    """Fixture: Phase 6 score response."""
+    return _build_score_response(
+        cluster_resp.clusters, claims_metadata, nli_resp.results,
+    )
+
+
+@pytest.fixture
+def umap_resp(embed_resp: EmbedClaimsResponse) -> ComputeUmapResponse:
+    """Fixture: Phase 7 UMAP response."""
+    return _build_umap_response(embed_resp.vectors)
+
+
+# ---------------------------------------------------------------------------
+# Phase 1: test_extract_phase
+# ---------------------------------------------------------------------------
+
+def test_extract_phase(extract_resp: ExtractClaimsResponse) -> None:
+    """Validate extract_claims output with Claim objects."""
+    assert len(extract_resp.warnings) == 0
+    assert len(extract_resp.claims) == len(CLAIM_TEXTS)
+    for j in range(len(extract_resp.claims)):
+        assert extract_resp.claims[j].claim_id.startswith("c_")
+        assert len(extract_resp.claims[j].claim_text) > 0
+    print("  [PASS] extract phase")
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: test_embed_phase
+# ---------------------------------------------------------------------------
+
+def test_embed_phase(
+    embed_resp: EmbedClaimsResponse,
+    claims: list,
+) -> None:
+    """Validate embed_claims output with Dict-based vectors."""
+    assert len(embed_resp.warnings) == 0
+    assert len(embed_resp.vectors) == len(claims)
+    assert embed_resp.dim == NUM_DIMS
+    for cid_key in embed_resp.vectors:
         assert cid_key.startswith("c_")
-        assert len(resp.coords3d[cid_key]) == 3
+        assert len(embed_resp.vectors[cid_key]) == NUM_DIMS
+    print("  [PASS] embed phase")
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: test_cluster_phase
+# ---------------------------------------------------------------------------
+
+def test_cluster_phase(
+    cluster_resp: ClusterClaimsResponse,
+    embed_resp: EmbedClaimsResponse,
+) -> None:
+    """Validate cluster_claims output with Cluster objects."""
+    claim_ids = list(embed_resp.vectors.keys())
+    assert len(cluster_resp.warnings) == 0
+    assert len(cluster_resp.clusters) == 2
+    for k in range(len(cluster_resp.clusters)):
+        assert cluster_resp.clusters[k].cluster_id.startswith("cl_")
+        assert len(cluster_resp.clusters[k].claim_ids) >= 1
+
+    all_ids: list = []
+    for k in range(len(cluster_resp.clusters)):
+        for cid in cluster_resp.clusters[k].claim_ids:
+            all_ids.append(cid)
+    assert sorted(all_ids) == sorted(claim_ids)
+    print("  [PASS] cluster phase")
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: test_rerank_phase
+# ---------------------------------------------------------------------------
+
+def test_rerank_phase(rerank_resp: RerankEvidenceBatchResponse) -> None:
+    """Validate rerank_evidence_batch output with ClaimRanking objects."""
+    assert len(rerank_resp.warnings) == 0
+    assert len(rerank_resp.rankings) == 1
+    assert rerank_resp.rankings[0].claim_id.startswith("c_")
+    assert len(rerank_resp.rankings[0].ordered_passage_ids) == TOP_K
+
+    prev_score = 999.0
+    for j in range(len(rerank_resp.rankings[0].ordered_passage_ids)):
+        pid = rerank_resp.rankings[0].ordered_passage_ids[j]
+        current_score = rerank_resp.rankings[0].scores[pid]
+        assert current_score <= prev_score
+        prev_score = current_score
+    print("  [PASS] rerank phase")
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: test_nli_phase
+# ---------------------------------------------------------------------------
+
+def test_nli_phase(
+    nli_resp: NliVerifyBatchResponse,
+    claims: list,
+) -> None:
+    """Validate nli_verify_batch output with NliResultOutput objects."""
+    assert len(nli_resp.warnings) == 0
+    assert len(nli_resp.results) == len(claims)
+    for i in range(len(nli_resp.results)):
+        r = nli_resp.results[i]
+        assert r.pair_id.startswith("nli_")
+        assert r.claim_id.startswith("c_")
+        assert r.label in ("entailment", "neutral", "contradiction")
+        assert len(r.probs) == 3
+    print("  [PASS] NLI phase")
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: test_score_phase
+# ---------------------------------------------------------------------------
+
+def test_score_phase(
+    score_resp: ScoreClustersResponse,
+    cluster_resp: ClusterClaimsResponse,
+) -> None:
+    """Validate score_clusters output with ClusterScore objects."""
+    assert len(score_resp.warnings) == 0
+    assert len(score_resp.scores) == len(cluster_resp.clusters)
+    for i in range(len(score_resp.scores)):
+        s = score_resp.scores[i]
+        assert s.cluster_id.startswith("cl_")
+        assert 0 <= s.trust_score <= 100
+        assert s.verdict in ("SAFE", "CAUTION", "REJECT")
+    print("  [PASS] score phase")
+
+
+# ---------------------------------------------------------------------------
+# Phase 7: test_umap_phase
+# ---------------------------------------------------------------------------
+
+def test_umap_phase(
+    umap_resp: ComputeUmapResponse,
+    embed_resp: EmbedClaimsResponse,
+) -> None:
+    """Validate compute_umap output with Dict-based coords3d."""
+    assert len(umap_resp.warnings) == 0
+    assert len(umap_resp.coords3d) == len(embed_resp.vectors)
+    for cid_key in umap_resp.coords3d:
+        assert cid_key.startswith("c_")
+        assert len(umap_resp.coords3d[cid_key]) == 3
     print("  [PASS] UMAP phase")
-    return resp
 
 
 # ---------------------------------------------------------------------------
@@ -455,45 +548,67 @@ def test_serialization(
 
 
 # ---------------------------------------------------------------------------
-# Main pipeline
+# Main pipeline helpers (standalone python execution)
 # ---------------------------------------------------------------------------
+
+def _run_pipeline_phases() -> tuple:
+    """Build all 7 pipeline responses and assert basic counts. Returns a tuple."""
+    extract_r = _build_extract_response()
+    claim_list = extract_r.claims
+    assert len(extract_r.warnings) == 0
+    assert len(claim_list) == len(CLAIM_TEXTS)
+    print("  [PASS] extract phase")
+
+    embed_r = _build_embed_response(claim_list)
+    assert len(embed_r.vectors) == len(claim_list)
+    print("  [PASS] embed phase")
+
+    meta = _build_claims_metadata(claim_list)
+    cluster_r = _build_cluster_response(embed_r.vectors, meta)
+    assert len(cluster_r.clusters) == 2
+    print("  [PASS] cluster phase")
+
+    rerank_r = _build_rerank_response()
+    assert len(rerank_r.rankings) == 1
+    print("  [PASS] rerank phase")
+
+    nli_r = _build_nli_response(claim_list)
+    assert len(nli_r.results) == len(claim_list)
+    print("  [PASS] NLI phase")
+
+    score_r = _build_score_response(
+        cluster_r.clusters, meta, nli_r.results,
+    )
+    assert len(score_r.scores) == len(cluster_r.clusters)
+    print("  [PASS] score phase")
+
+    umap_r = _build_umap_response(embed_r.vectors)
+    assert len(umap_r.coords3d) == len(embed_r.vectors)
+    print("  [PASS] UMAP phase")
+
+    return (extract_r, embed_r, cluster_r, rerank_r, nli_r, score_r, umap_r)
+
+
+def _run_serialization_check(responses: tuple) -> None:
+    """Verify all 7 responses round-trip through model_dump / reconstruct."""
+    classes = [
+        ExtractClaimsResponse, EmbedClaimsResponse, ClusterClaimsResponse,
+        RerankEvidenceBatchResponse, NliVerifyBatchResponse,
+        ScoreClustersResponse, ComputeUmapResponse,
+    ]
+    for i in range(len(responses)):
+        d = responses[i].model_dump()
+        rebuilt = classes[i](**d)
+        assert rebuilt == responses[i]
+    print("  [PASS] serialization round-trip")
+
 
 def main() -> int:
     """Run the full 7-function integration test pipeline."""
     print("TruthLens ML Integration Test Harness (v2 -- spec-aligned)")
     print("=" * 55)
-
-    # Phase 1: extract claims
-    extract_resp = test_extract_phase()
-    claims = extract_resp.claims
-
-    # Phase 2: embed claims
-    embed_resp = test_embed_phase(claims)
-
-    # Phase 3: cluster claims
-    claims_metadata = _build_claims_metadata(claims)
-    cluster_resp = test_cluster_phase(embed_resp.vectors, claims_metadata)
-
-    # Phase 4: rerank evidence
-    rerank_resp = test_rerank_phase()
-
-    # Phase 5: NLI verify
-    nli_resp = test_nli_phase(claims)
-
-    # Phase 6: score clusters
-    score_resp = test_score_phase(
-        cluster_resp.clusters, claims_metadata, nli_resp.results,
-    )
-
-    # Phase 7: UMAP
-    umap_resp = test_umap_phase(embed_resp.vectors)
-
-    # Serialization round-trip
-    test_serialization(
-        extract_resp, embed_resp, cluster_resp,
-        rerank_resp, nli_resp, score_resp, umap_resp,
-    )
-
+    responses = _run_pipeline_phases()
+    _run_serialization_check(responses)
     print("=" * 55)
     print("All integration tests passed.")
     return 0
