@@ -70,13 +70,16 @@ export default function LoadingPage() {
         <div className="relative flex items-center justify-center w-[400px] h-[400px] mb-8">
           
           {/* Centered Percentage Display */}
-          <div className="absolute flex flex-col items-center justify-center z-20">
-            <motion.p 
-              className="text-transparent bg-clip-text bg-gradient-to-b from-[#FFFFFF] to-[#A9BDE8]"
-              style={{ fontFamily: 'Inter', fontSize: '72px', fontWeight: 300, letterSpacing: '-0.02em', filter: 'drop-shadow(0 0 15px rgba(169,189,232,0.3))' }}
-            >
-              {percentage}<span className="text-[32px] ml-1 opacity-50 font-light">%</span>
-            </motion.p>
+          <div className="absolute inset-0 flex items-center justify-center z-20">
+            <motion.div className="flex items-baseline justify-center">
+              <p
+                className="text-transparent bg-clip-text bg-gradient-to-b from-[#FFFFFF] to-[#A9BDE8]"
+                style={{ fontFamily: 'Inter', fontSize: '72px', fontWeight: 300, letterSpacing: '-0.02em', filter: 'drop-shadow(0 0 15px rgba(169,189,232,0.3))' }}
+              >
+                {percentage}
+              </p>
+              <span className="text-[32px] opacity-50 font-light ml-2">%</span>
+            </motion.div>
           </div>
 
           {/* SVG Complex Filters & Fluid Rings */}

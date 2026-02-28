@@ -1,152 +1,217 @@
-import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, ShieldAlert, FileText, Database, CheckCircle2 } from 'lucide-react';
+import { 
+  FileText, Database, 
+  Network, ShieldCheck, ShieldAlert, 
+  CheckCircle2, Trash2 
+} from 'lucide-react';
 
 interface PipelineProps {
   selectedModels: string[];
 }
 
-const MODEL_COLORS = {
-  'GPT-4': '#10A37F',
-  'Gemini': '#428F54', 
-  'Claude': '#E8825A',
-  'Llama': '#A855F7',
-  'Mistral': '#F59E0B'
+const MODEL_COLORS: Record<string, string> = {
+  'GPT-4 (OpenAI)': '#10A37F',
+  'Gemini (Google)': '#428F54', 
+  'Claude (Anthropic)': '#E8825A',
+  'Llama 3 (Meta)': '#A8555F',
+  'Kimi (Moonshot)': '#5273FB'
 };
 
-// SVG Coordinate System (1000x500)
-const COL_X = { input: 60, models: 240, extract: 420, cluster: 600, verify: 780, answer: 940 };
-const ROW_Y = { r1: 50, r2: 150, center: 250, r4: 350, r5: 450, c_top: 100, c_bot: 400 };
+// --- EXPANDED COORDINATE SYSTEM (1200x650) ---
+// X-axis centers
+const X = { input: 100, models: 300, extract: 500, cluster: 700, verify: 900, answer: 1100 };
+// Y-axis centers
+const Y = { r1: 120, r2: 210, center: 300, r4: 390, r5: 480, cTop: 165, cBot: 435, trash: 580 };
 
-const PATHS = [
-  { id: 'gpt4', color: MODEL_COLORS['GPT-4'], points: [ [COL_X.input, ROW_Y.center], [COL_X.models, ROW_Y.r1], [COL_X.extract, ROW_Y.r1], [COL_X.cluster, ROW_Y.c_top], [COL_X.verify, ROW_Y.c_top], [COL_X.answer, ROW_Y.center] ] },
-  { id: 'gemini', color: MODEL_COLORS['Gemini'], points: [ [COL_X.input, ROW_Y.center], [COL_X.models, ROW_Y.r2], [COL_X.extract, ROW_Y.r2], [COL_X.cluster, ROW_Y.c_top], [COL_X.verify, ROW_Y.c_top], [COL_X.answer, ROW_Y.center] ] },
-  { id: 'claude', color: MODEL_COLORS['Claude'], points: [ [COL_X.input, ROW_Y.center], [COL_X.models, ROW_Y.center], [COL_X.extract, ROW_Y.center], [COL_X.cluster, ROW_Y.center], [COL_X.verify, ROW_Y.center] ] },
-  { id: 'llama', color: MODEL_COLORS['Llama'], points: [ [COL_X.input, ROW_Y.center], [COL_X.models, ROW_Y.r4], [COL_X.extract, ROW_Y.r4], [COL_X.cluster, ROW_Y.c_bot], [COL_X.verify, ROW_Y.c_bot], [COL_X.answer, ROW_Y.center] ] },
-  { id: 'mistral', color: MODEL_COLORS['Mistral'], points: [ [COL_X.input, ROW_Y.center], [COL_X.models, ROW_Y.r5], [COL_X.extract, ROW_Y.r5], [COL_X.cluster, ROW_Y.c_bot], [COL_X.verify, ROW_Y.c_bot], [COL_X.answer, ROW_Y.center] ] },
-];
-
-// Helper to generate smooth bezier curves instead of harsh straight lines
-const makeSmoothCurve = (points: number[][]) => {
-  let d = `M ${points[0][0]},${points[0][1]} `;
-  for (let i = 1; i < points.length; i++) {
-    const [x1, y1] = points[i - 1];
-    const [x2, y2] = points[i];
-    // Control points halfway between X coordinates to ensure horizontal entry/exit
-    const ctrlX = (x1 + x2) / 2;
-    d += `C ${ctrlX},${y1} ${ctrlX},${y2} ${x2},${y2} `;
-  }
-  return d;
+// --- BOUNDING BOX CALCULATIONS ---
+// Used to stop the SVG lines exactly on the edge of the HTML nodes so they don't bleed inside
+const P = {
+  inR: 124,         // Input Right edge
+  modL: 245,        // Models Left edge
+  modR: 355,        // Models Right edge
+  extL: 480,        // Extract Left edge
+  extR: 520,        // Extract Right edge
+  cluL: 660,        // Cluster Left edge
+  cluR: 740,        // Cluster Right edge
+  verL: 876,        // Verify Left edge
+  verR: 924,        // Verify Right edge
+  ansL: 1030,       // Answer Left edge
+  verBot: 459,      // Verify Bottom edge
+  trashTop: 548     // Trash Top edge
 };
 
-const FlowingStream = ({ path }: { path: typeof PATHS[0] }) => {
-  const duration = (path.points.length - 1) * 1.5;
-
-  return (
-    <>
-      <path d={makeSmoothCurve(path.points)} stroke="#2C3A50" strokeWidth="2" fill="none" />
-      {[0, 0.33, 0.66].map((delayFactor, i) => (
-        <motion.circle
-          key={`${path.id}-${i}`}
-          r="4"
-          fill={path.color}
-          style={{ filter: `drop-shadow(0 0 6px ${path.color})`, offsetPath: `path('${makeSmoothCurve(path.points)}')` }}
-          animate={{ offsetDistance: ["0%", "100%"] }}
-          transition={{
-            duration: duration,
-            ease: "linear",
-            repeat: Infinity,
-            delay: delayFactor * duration
-          }}
-        />
-      ))}
-    </>
-  );
+// Generates smooth Sankey-style S-curves with guaranteed horizontal entry/exit
+const createSankeyPath = (x1: number, y1: number, x2: number, y2: number) => {
+  if (y1 === y2) return `M ${x1} ${y1} L ${x2} ${y2}`; 
+  const cpOffset = (x2 - x1) * 0.45; // Controls the curve steepness
+  return `M ${x1} ${y1} C ${x1 + cpOffset} ${y1}, ${x2 - cpOffset} ${y2}, ${x2} ${y2}`;
 };
 
 export default function Pipeline({ selectedModels }: PipelineProps) {
-  const getPos = (val: number, isX: boolean) => `${(val / (isX ? 1000 : 500)) * 100}%`;
+  
+  const getX = (val: number) => `${(val / 1200) * 100}%`;
+  const getY = (val: number) => `${(val / 650) * 100}%`;
 
-  const BaseNode = ({ x, y, children, className = "" }: { x: number, y: number, children: ReactNode, className?: string }) => (
-    <div 
-      className={`absolute flex items-center justify-center -translate-x-1/2 -translate-y-1/2 bg-[#1A2335] border border-[#2C3A50] shadow-lg z-10 ${className}`}
-      style={{ left: getPos(x, true), top: getPos(y, false) }}
-    >
-      {children}
+  const FlowRiver = ({ x1, y1, x2, y2, color, isRejected = false, isActive = true, isDrop = false }: any) => {
+    if (!isActive) return null;
+    
+    // Drop paths use a straight vertical line, everything else uses the S-curve
+    const path = isDrop 
+      ? `M ${x1} ${y1} L ${x1} ${y2}` 
+      : createSankeyPath(x1, y1, x2, y2);
+    
+    const strokeColor = isRejected ? '#FF4757' : color;
+    
+    return (
+      <g>
+        {/* Outer faint glow volume */}
+        <path d={path} stroke={strokeColor} strokeWidth="16" fill="none" opacity={isRejected ? 0.05 : 0.15} />
+        {/* Solid core line */}
+        <path d={path} stroke={strokeColor} strokeWidth="2" fill="none" opacity={isRejected ? 0.2 : 0.4} />
+        {/* Animated dashes */}
+        <motion.path 
+          d={path} 
+          stroke={strokeColor} 
+          strokeWidth={isRejected ? 2 : 4} 
+          fill="none" 
+          strokeLinecap="round"
+          style={{ filter: `drop-shadow(0 0 6px ${strokeColor})` }}
+          strokeDasharray="6 35"
+          animate={{ strokeDashoffset: [41, 0] }}
+          transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+          opacity={isRejected ? 0.4 : 1}
+        />
+      </g>
+    );
+  };
+
+  const StageHeader = ({ x, title, subtitle }: { x: number, title: string, subtitle: string }) => (
+    <div className="absolute top-6 -translate-x-1/2 flex flex-col items-center z-20" style={{ left: getX(x) }}>
+      <span className="text-[#EBF0FF] text-[11px] font-bold tracking-[0.15em] uppercase">{title}</span>
+      <span className="text-[#588983] text-[9px] font-medium tracking-widest uppercase mt-1">{subtitle}</span>
     </div>
   );
 
   return (
-    <div className="flex flex-col items-center w-full h-full p-8 overflow-hidden bg-[#0A0E1A]">
-
-      <div className="relative w-full max-w-6xl flex-1 bg-[#121825] border border-[#2C3A50] rounded-2xl shadow-2xl p-4 overflow-hidden">
+    <div className="flex flex-col items-center justify-center w-full h-full p-8 bg-[#0A0E1A] overflow-hidden">
+      
+      <div className="relative w-full max-w-[1400px] aspect-[1200/650] bg-[#121825] border border-[#2C3A50] rounded-3xl shadow-2xl overflow-hidden">
         
-        <div className="absolute top-6 left-0 right-0 h-10 flex text-[#90A2B3] text-[10px] font-bold tracking-widest uppercase z-20">
-          <div className="absolute -translate-x-1/2 text-center" style={{ left: getPos(COL_X.input, true) }}>Input</div>
-          <div className="absolute -translate-x-1/2 text-center" style={{ left: getPos(COL_X.models, true) }}>5 Models</div>
-          <div className="absolute -translate-x-1/2 text-center w-24" style={{ left: getPos(COL_X.extract, true) }}>Claim Extraction</div>
-          <div className="absolute -translate-x-1/2 text-center" style={{ left: getPos(COL_X.cluster, true) }}>Clustering</div>
-          <div className="absolute -translate-x-1/2 text-center" style={{ left: getPos(COL_X.verify, true) }}>Verification</div>
-          <div className="absolute -translate-x-1/2 text-center w-24" style={{ left: getPos(COL_X.answer, true) }}>Safe Answer</div>
-        </div>
+        <StageHeader x={X.input} title="Input" subtitle="User Prompt" />
+        <StageHeader x={X.models} title="5 Models" subtitle="Parallel Gen" />
+        <StageHeader x={X.extract} title="Extraction" subtitle="Atomic Claims" />
+        <StageHeader x={X.cluster} title="Clustering" subtitle="Semantic NLI" />
+        <StageHeader x={X.verify} title="Verification" subtitle="Filter Gate" />
+        <StageHeader x={X.answer} title="Synthesis" subtitle="Safe Answer" />
 
-        <svg viewBox="0 0 1000 500" className="absolute inset-0 w-full h-full pointer-events-none z-0">
-          {PATHS.map(path => {
-            const isActive = selectedModels.some(sm => sm.includes(path.id === 'gpt4' ? 'GPT-4' : path.id === 'gemini' ? 'Gemini' : path.id === 'claude' ? 'Claude' : path.id === 'llama' ? 'Llama' : 'Kimi'));
-            return isActive ? <FlowingStream key={path.id} path={path} /> : null;
-          })}
+        {/* --- SVG DRAWING LAYER (Flows perfectly from edge to edge) --- */}
+        <svg viewBox="0 0 1200 650" className="absolute inset-0 w-full h-full z-10 pointer-events-none">
+          
+          {/* 1. INPUT TO MODELS */}
+          <FlowRiver x1={P.inR} y1={Y.center} x2={P.modL} y2={Y.r1} color={MODEL_COLORS['GPT-4 (OpenAI)']} isActive={selectedModels.includes('GPT-4 (OpenAI)')} />
+          <FlowRiver x1={P.inR} y1={Y.center} x2={P.modL} y2={Y.r2} color={MODEL_COLORS['Gemini (Google)']} isActive={selectedModels.includes('Gemini (Google)')} />
+          <FlowRiver x1={P.inR} y1={Y.center} x2={P.modL} y2={Y.center} color={MODEL_COLORS['Claude (Anthropic)']} isActive={selectedModels.includes('Claude (Anthropic)')} />
+          <FlowRiver x1={P.inR} y1={Y.center} x2={P.modL} y2={Y.r4} color={MODEL_COLORS['Llama 3 (Meta)']} isActive={selectedModels.includes('Llama 3 (Meta)')} />
+          <FlowRiver x1={P.inR} y1={Y.center} x2={P.modL} y2={Y.r5} color={MODEL_COLORS['Kimi (Moonshot)']} isActive={selectedModels.includes('Kimi (Moonshot)')} />
+
+          {/* 2. MODELS TO EXTRACTION */}
+          <FlowRiver x1={P.modR} y1={Y.r1} x2={P.extL} y2={Y.r1} color={MODEL_COLORS['GPT-4 (OpenAI)']} isActive={selectedModels.includes('GPT-4 (OpenAI)')} />
+          <FlowRiver x1={P.modR} y1={Y.r2} x2={P.extL} y2={Y.r2} color={MODEL_COLORS['Gemini (Google)']} isActive={selectedModels.includes('Gemini (Google)')} />
+          <FlowRiver x1={P.modR} y1={Y.center} x2={P.extL} y2={Y.center} color={MODEL_COLORS['Claude (Anthropic)']} isActive={selectedModels.includes('Claude (Anthropic)')} />
+          <FlowRiver x1={P.modR} y1={Y.r4} x2={P.extL} y2={Y.r4} color={MODEL_COLORS['Llama 3 (Meta)']} isActive={selectedModels.includes('Llama 3 (Meta)')} />
+          <FlowRiver x1={P.modR} y1={Y.r5} x2={P.extL} y2={Y.r5} color={MODEL_COLORS['Kimi (Moonshot)']} isActive={selectedModels.includes('Kimi (Moonshot)')} />
+
+          {/* 3. EXTRACTION TO CLUSTERING (Re-routed to avoid overlaps) */}
+          <FlowRiver x1={P.extR} y1={Y.r1} x2={P.cluL} y2={Y.cTop} color={MODEL_COLORS['GPT-4 (OpenAI)']} isActive={selectedModels.includes('GPT-4 (OpenAI)')} />
+          <FlowRiver x1={P.extR} y1={Y.r2} x2={P.cluL} y2={Y.cTop} color={MODEL_COLORS['Gemini (Google)']} isActive={selectedModels.includes('Gemini (Google)')} />
+          
+          <FlowRiver x1={P.extR} y1={Y.center} x2={P.cluL} y2={Y.center} color={MODEL_COLORS['Claude (Anthropic)']} isActive={selectedModels.includes('Claude (Anthropic)')} />
+          <FlowRiver x1={P.extR} y1={Y.r5} x2={P.cluL} y2={Y.center} color={MODEL_COLORS['Kimi (Moonshot)']} isActive={selectedModels.includes('Kimi (Moonshot)')} />
+
+          {/* Llama's Hallucination is now completely isolated at the bottom */}
+          <FlowRiver x1={P.extR} y1={Y.r4} x2={P.cluL} y2={Y.cBot} color={MODEL_COLORS['Llama 3 (Meta)']} isActive={selectedModels.includes('Llama 3 (Meta)')} />
+
+          {/* 4. CLUSTERING TO VERIFICATION */}
+          <FlowRiver x1={P.cluR} y1={Y.cTop} x2={P.verL} y2={Y.cTop} color="#00D68F" />
+          <FlowRiver x1={P.cluR} y1={Y.center} x2={P.verL} y2={Y.center} color="#00D68F" />
+          <FlowRiver x1={P.cluR} y1={Y.cBot} x2={P.verL} y2={Y.cBot} color="#FFB020" />
+
+          {/* 5. VERIFICATION TO SYNTHESIS OR TRASH */}
+          <FlowRiver x1={P.verR} y1={Y.cTop} x2={P.ansL} y2={Y.center} color="#00D68F" />
+          <FlowRiver x1={P.verR} y1={Y.center} x2={P.ansL} y2={Y.center} color="#00D68F" />
+          
+          {/* Drop down to filtered (Perfect vertical drop, zero overlap) */}
+          <FlowRiver x1={X.verify} y1={P.verBot} x2={X.verify} y2={P.trashTop} color="#FF4757" isRejected={true} isDrop={true} />
         </svg>
 
-        {/* Input */}
-        <BaseNode x={COL_X.input} y={ROW_Y.center} className="w-12 h-12 rounded-xl">
-          <FileText className="w-5 h-5 text-[#90A2B3]" />
-        </BaseNode>
+        {/* --- HTML NODES LAYER (Solid blocks that sit over the lines) --- */}
+        
+        {/* INPUT */}
+        <div className="absolute -translate-x-1/2 -translate-y-1/2 bg-[#1E2738] p-4 rounded-2xl border border-[#3A4B66] z-20 shadow-[0_0_15px_rgba(0,0,0,0.5)]" style={{ left: getX(X.input), top: getY(Y.center) }}>
+          <FileText className="w-6 h-6 text-[#A9BDE8]" />
+        </div>
 
-        {/* Models & Extraction */}
+        {/* MODELS & EXTRACTION */}
         {[
-          { y: ROW_Y.r1, name: 'GPT-4', color: MODEL_COLORS['GPT-4'] },
-          { y: ROW_Y.r2, name: 'Gemini', color: MODEL_COLORS['Gemini'] },
-          { y: ROW_Y.center, name: 'Claude', color: MODEL_COLORS['Claude'] },
-          { y: ROW_Y.r4, name: 'Llama 3', color: MODEL_COLORS['Llama'] },
-          { y: ROW_Y.r5, name: 'Mistral', color: MODEL_COLORS['Mistral'] }
-        ].map((m) => (
-          <div key={m.name}>
-            <BaseNode x={COL_X.models} y={m.y} className="w-28 h-10 rounded-xl">
-              <span className="text-xs font-bold" style={{ color: m.color }}>{m.name}</span>
-            </BaseNode>
-            <BaseNode x={COL_X.extract} y={m.y} className="w-8 h-8 rounded-md bg-[#0A0E1A]">
-              <Database className="w-3 h-3 text-[#90A2B3]" />
-            </BaseNode>
-          </div>
-        ))}
+          { y: Y.r1, name: 'GPT-4', modelKey: 'GPT-4 (OpenAI)' },
+          { y: Y.r2, name: 'Gemini', modelKey: 'Gemini (Google)' },
+          { y: Y.center, name: 'Claude', modelKey: 'Claude (Anthropic)' },
+          { y: Y.r4, name: 'Llama 3', modelKey: 'Llama 3 (Meta)' },
+          { y: Y.r5, name: 'Mistral', modelKey: 'Kimi (Moonshot)' }
+        ].map((m) => {
+          const isActive = selectedModels.includes(m.modelKey);
+          return (
+            <div key={m.name} className={`transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-20 grayscale'}`}>
+              <div className="absolute -translate-x-1/2 -translate-y-1/2 px-6 py-2 bg-[#1E2738] rounded-full border border-[#3A4B66] z-20 shadow-lg w-[110px] flex justify-center" style={{ left: getX(X.models), top: getY(m.y) }}>
+                <span className="text-[12px] font-bold" style={{ color: MODEL_COLORS[m.modelKey] }}>{m.name}</span>
+              </div>
+              <div className="absolute -translate-x-1/2 -translate-y-1/2 bg-[#1E2738] p-2.5 rounded-full border border-[#3A4B66] z-20 shadow-lg w-10 flex justify-center" style={{ left: getX(X.extract), top: getY(m.y) }}>
+                <Database className="w-4 h-4 text-[#90A2B3]" />
+              </div>
+            </div>
+          );
+        })}
 
-        {/* Clustering */}
-        <BaseNode x={COL_X.cluster} y={ROW_Y.c_top} className="w-14 h-14 rounded-full bg-[#1A2335] border-[#5E6E81]">
-          <span className="text-[10px] text-[#EBF0FF] font-bold text-center leading-tight">Agreed<br/>Cluster</span>
-        </BaseNode>
-        <BaseNode x={COL_X.cluster} y={ROW_Y.center} className="w-12 h-12 rounded-full bg-[#0A0E1A] opacity-70">
-          <span className="text-[9px] text-[#90A2B3] font-bold text-center leading-tight">Solo<br/>Claim</span>
-        </BaseNode>
-        <BaseNode x={COL_X.cluster} y={ROW_Y.c_bot} className="w-14 h-14 rounded-full bg-[#1A2335] border-[#5E6E81]">
-          <span className="text-[10px] text-[#EBF0FF] font-bold text-center leading-tight">Agreed<br/>Cluster</span>
-        </BaseNode>
+        {/* CLUSTERING NODES */}
+        <div className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-20 h-20 bg-[#1E2738] rounded-full border border-[#3A4B66] z-20 shadow-lg" style={{ left: getX(X.cluster), top: getY(Y.cTop) }}>
+          <Network className="w-5 h-5 text-[#A9BDE8] mb-1" />
+          <span className="text-[9px] text-[#EBF0FF] font-bold">Consensus</span>
+        </div>
+        
+        <div className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-20 h-20 bg-[#1E2738] rounded-full border border-[#3A4B66] z-20 shadow-lg" style={{ left: getX(X.cluster), top: getY(Y.center) }}>
+          <Network className="w-5 h-5 text-[#A9BDE8] mb-1" />
+          <span className="text-[9px] text-[#EBF0FF] font-bold">Consensus</span>
+        </div>
 
-        {/* Verification */}
-        <BaseNode x={COL_X.verify} y={ROW_Y.c_top} className="w-10 h-10 rounded-xl border-[#00D68F] bg-[#00D68F]/10">
-          <Shield className="w-4 h-4 text-[#00D68F]" />
-        </BaseNode>
-        <BaseNode x={COL_X.verify} y={ROW_Y.center} className="w-10 h-10 rounded-xl border-[#FF4757] bg-[#FF4757]/10">
-          <ShieldAlert className="w-4 h-4 text-[#FF4757]" />
-        </BaseNode>
-        <BaseNode x={COL_X.verify} y={ROW_Y.c_bot} className="w-10 h-10 rounded-xl border-[#00D68F] bg-[#00D68F]/10">
-          <Shield className="w-4 h-4 text-[#00D68F]" />
-        </BaseNode>
+        <div className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-20 h-20 bg-[#1E2738] rounded-full border border-[#FFB020]/40 z-20 shadow-lg" style={{ left: getX(X.cluster), top: getY(Y.cBot) }}>
+          <span className="text-[10px] text-[#FFB020] font-bold text-center leading-tight">Solo<br/>Claim</span>
+        </div>
 
-        {/* Safe Answer */}
-        <BaseNode x={COL_X.answer} y={ROW_Y.center} className="w-24 h-24 rounded-2xl border-[#00D68F] bg-[#00D68F]/5 shadow-[0_0_30px_rgba(0,214,143,0.15)] flex-col gap-2">
-          <CheckCircle2 className="w-8 h-8 text-[#00D68F]" />
-          <span className="text-[10px] font-bold text-[#EBF0FF] uppercase tracking-wider text-center">Verified<br/>Output</span>
-        </BaseNode>
+        {/* VERIFICATION GATES */}
+        <div className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-12 h-12 bg-[#161D2E] rounded-xl border border-[#00D68F]/60 z-20 shadow-[0_0_20px_rgba(0,214,143,0.15)]" style={{ left: getX(X.verify), top: getY(Y.cTop) }}>
+          <ShieldCheck className="w-6 h-6 text-[#00D68F]" />
+        </div>
+        
+        <div className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-12 h-12 bg-[#161D2E] rounded-xl border border-[#00D68F]/60 z-20 shadow-[0_0_20px_rgba(0,214,143,0.15)]" style={{ left: getX(X.verify), top: getY(Y.center) }}>
+          <ShieldCheck className="w-6 h-6 text-[#00D68F]" />
+        </div>
+
+        <div className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-12 h-12 bg-[#161D2E] rounded-xl border border-[#FF4757]/60 z-20 shadow-[0_0_20px_rgba(255,71,87,0.15)]" style={{ left: getX(X.verify), top: getY(Y.cBot) }}>
+          <ShieldAlert className="w-6 h-6 text-[#FF4757]" />
+        </div>
+
+        {/* REJECTED BUCKET */}
+        <div className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-20 h-16 bg-[#1A1215] rounded-xl border border-[#FF4757]/30 z-20 shadow-lg" style={{ left: getX(X.verify), top: getY(Y.trash) }}>
+          <Trash2 className="w-5 h-5 text-[#FF4757]" />
+          <span className="text-[9px] text-[#FF4757] font-bold tracking-widest mt-1.5">FILTERED</span>
+        </div>
+
+        {/* SAFE ANSWER */}
+        <div className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-[140px] h-[140px] bg-[#121825] rounded-[2rem] border-2 border-[#00D68F]/50 z-20 shadow-[0_0_40px_rgba(0,214,143,0.2)] overflow-hidden" style={{ left: getX(X.answer), top: getY(Y.center) }}>
+          <div className="absolute inset-0 bg-gradient-to-br from-[#00D68F]/20 to-transparent z-0" />
+          <CheckCircle2 className="w-10 h-10 text-[#00D68F] mb-3 z-10" />
+          <span className="text-[13px] font-bold text-[#EBF0FF] uppercase tracking-widest text-center leading-tight z-10">Verified<br/>Answer</span>
+        </div>
 
       </div>
     </div>
