@@ -57,5 +57,3 @@ async def retrieve_evidence(
         except Exception as e:
             logger.exception(f"Unexpected error during concurrent evidence retrieval: {e}")
             return {}
-    except Exception:
-        return {}
