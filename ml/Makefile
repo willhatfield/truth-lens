@@ -1,7 +1,7 @@
 # TruthLens ML Pipeline — Makefile
 # Runs unit tests, integration harness, and Modal deployment commands.
 
-.PHONY: test harness test-all lint deploy serve clean \
+.PHONY: test harness test-all e2e mock-data lint deploy serve clean \
         run-extract run-embed run-cluster run-rerank \
         run-nli run-umap run-score
 
@@ -16,6 +16,12 @@ harness:                       ## Run local integration harness (7-function pipe
 	python test_harness.py
 
 test-all: test harness         ## Run unit tests then integration harness
+
+e2e:                           ## Run E2E test against deployed Modal endpoints
+	MODAL_API_KEY=$(MODAL_API_KEY) python e2e_modal_test.py
+
+mock-data:                     ## Print mock pipeline data summary
+	python -c "from mock_data import build_full_pipeline_data; d = build_full_pipeline_data(); print(f'{len(d)} payloads: {list(d.keys())}')"
 
 # ---------------------------------------------------------------------------
 # Modal deployment
