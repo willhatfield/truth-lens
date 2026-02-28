@@ -81,25 +81,28 @@ const TRUST_COLORS: Record<string, string> = {
 };
 
 export default function SynthesisView({ onOpenVisualizer }: SynthesisViewProps) {
+  // 1. ALL STATES MUST BE INSIDE THE COMPONENT
   const [activeSegment, setActiveSegment] = useState<string | null>(null);
   const [isExpanding, setIsExpanding] = useState(false);
   const [additionalBlocks, setAdditionalBlocks] = useState<any[]>([]);
 
+  // We combine the initial text and the expanded text so the Reasoning Panel can find both
   const allSegments = [...INITIAL_SYNTHESIS, ...additionalBlocks];
 
+  // 2. THE HANDLER FUNCTION
   const handleExpandSynthesis = () => {
     setIsExpanding(true);
     setTimeout(() => {
       const newBlock = {
         id: `s${allSegments.length + 1}`,
-        text: "Circadian-aligned fasting specifically optimizes the BMAL1 and CLOCK gene expressions, which are the master regulators of cellular insulin sensitivity. This 'genetic priming' distinguishes fasting from simple caloric restriction in clinical outcomes. ",
+        text: "Deep Scan Result: Circadian-aligned fasting specifically optimizes the BMAL1 and CLOCK gene expressions, which are the master regulators of cellular insulin sensitivity. This 'genetic priming' distinguishes fasting from simple caloric restriction in clinical outcomes. ",
         models: ['Gemini', 'Claude', 'Kimi'],
         trust: 'VerifiedSafe',
         expandedReasoning: "Cross-verified across 3 genomic studies. High semantic alignment between Gemini's biological summary and Claude's clinical analysis regarding BMAL1 pathways."
       };
       setAdditionalBlocks(prev => [...prev, newBlock]);
       setIsExpanding(false);
-    }, 1200);
+    }, 1500);
   };
 
   const getHighlightStyle = (models: string[], isActive: boolean) => {
@@ -162,6 +165,7 @@ export default function SynthesisView({ onOpenVisualizer }: SynthesisViewProps) 
                   </span>
                 ))}
 
+                {/* 3. THE EXPANDED BLOCKS ARE RENDERED HERE */}
                 <AnimatePresence>
                   {additionalBlocks.map((block) => (
                     <motion.span 
@@ -169,7 +173,7 @@ export default function SynthesisView({ onOpenVisualizer }: SynthesisViewProps) 
                       initial={{ opacity: 0, x: -5 }}
                       animate={{ opacity: 1, x: 0 }}
                       onClick={() => setActiveSegment(activeSegment === block.id ? null : block.id)}
-                      className="cursor-pointer transition-all duration-300 rounded-sm px-1 mr-1 border-l border-[#588983]/50"
+                      className="cursor-pointer transition-all duration-300 rounded-sm px-1 mr-1 border-l-2 border-[#588983]"
                       style={getHighlightStyle(block.models, activeSegment === block.id)}
                     >
                       {block.text}
@@ -178,21 +182,27 @@ export default function SynthesisView({ onOpenVisualizer }: SynthesisViewProps) 
                 </AnimatePresence>
               </div>
 
-              {/* ACTION BAR */}
+              {/* THE EXPAND ACTION BAR */}
               <div className="mt-8 pt-6 border-t border-[#2C3A50]/50 flex items-center justify-between">
-                <button 
-                  onClick={handleExpandSynthesis}
-                  disabled={isExpanding}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-[#1A2335] hover:bg-[#1E293B] border border-[#588983]/30 hover:border-[#588983]/60 rounded-lg transition-all group disabled:opacity-50"
-                >
-                  {isExpanding ? <Activity className="w-3.5 h-3.5 text-[#588983] animate-spin" /> : <Layers className="w-3.5 h-3.5 text-[#588983]" />}
-                  <span className="text-[#EBF0FF] text-xs font-bold uppercase tracking-wider">
-                    {isExpanding ? "Deep Scanning..." : "Expand Synthesis"}
-                  </span>
-                </button>
-                <span className="text-[#90A2B3] text-[11px] italic">
-                  Passage analysis includes 5-model cross-verification.
-                </span>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={handleExpandSynthesis}
+                    disabled={isExpanding}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#1A2335] hover:bg-[#2C3A50] border border-[#588983]/40 rounded-lg transition-all group disabled:opacity-50"
+                  >
+                    {isExpanding ? (
+                      <Activity className="w-4 h-4 text-[#588983] animate-spin" />
+                    ) : (
+                      <Layers className="w-4 h-4 text-[#588983] group-hover:scale-110 transition-transform" />
+                    )}
+                    <span className="text-[#EBF0FF] text-[13px] font-bold">
+                      {isExpanding ? "Analyzing Evidence..." : "Expand Synthesis"}
+                    </span>
+                  </button>
+                  <p className="text-[#90A2B3] text-[11px] max-w-[200px] leading-tight hidden sm:block">
+                    Triggers a secondary deep-scan of biological mechanisms.
+                  </p>
+                </div>
               </div>
             </div>
 
