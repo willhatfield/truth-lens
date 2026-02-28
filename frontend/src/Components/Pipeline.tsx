@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, ShieldAlert, FileText, Cpu, Database, CheckCircle2 } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { motion } from 'framer-motion';
+import { Shield, ShieldAlert, FileText, Database, CheckCircle2 } from 'lucide-react';
 
 interface PipelineProps {
   selectedModels: string[];
@@ -67,7 +67,7 @@ const FlowingStream = ({ path }: { path: typeof PATHS[0] }) => {
 export default function Pipeline({ selectedModels }: PipelineProps) {
   const getPos = (val: number, isX: boolean) => `${(val / (isX ? 1000 : 500)) * 100}%`;
 
-  const BaseNode = ({ x, y, children, className = "" }: { x: number, y: number, children: React.ReactNode, className?: string }) => (
+  const BaseNode = ({ x, y, children, className = "" }: { x: number, y: number, children: ReactNode, className?: string }) => (
     <div 
       className={`absolute flex items-center justify-center -translate-x-1/2 -translate-y-1/2 bg-[#1A2335] border border-[#2C3A50] shadow-lg z-10 ${className}`}
       style={{ left: getPos(x, true), top: getPos(y, false) }}

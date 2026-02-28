@@ -47,7 +47,7 @@ const NLI_COLORS: Record<string, string> = {
   neutral: '#949fb8'
 };
 
-export default function EvidenceNetwork({ selectedModels }: EvidenceNetworkProps) {
+export default function EvidenceNetwork({ selectedModels: _selectedModels }: EvidenceNetworkProps) {
   const [activeNode, setActiveNode] = useState<any | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
 
@@ -192,7 +192,7 @@ export default function EvidenceNetwork({ selectedModels }: EvidenceNetworkProps
                );
             }
             const opacity = hasAnyFocus ? (isConnected ? 1 : 0.15) : 1;
-            const nodeColor = isClaim ? TRUST_COLORS[node.trust] : NLI_COLORS[(node as any).nli];
+            const nodeColor = isClaim ? TRUST_COLORS[(node as any).trust] : NLI_COLORS[(node as any).nli];
 
             return (
               <motion.div
