@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Clock, X, ShieldCheck, AlertCircle, LogOut } from 'lucide-react';
+import type { AnalysisResult } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import Constellation from './Constellation';
 import Heatmap from './Heatmap';
@@ -18,18 +19,30 @@ const MOCK_HISTORY = [
 
 export default function ArenaPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const jobId = new URLSearchParams(location.search).get('job');
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
-  
+
   // Auth & History States
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  
+
+  // Analysis result
+  const [result, setResult] = useState<AnalysisResult | null>(null);
+
   useEffect(() => {
     // Check if user logged in via LandingPage
     if (localStorage.getItem('truthlens_auth') === 'true') {
       setIsLoggedIn(true);
     }
-  }, []);
+    // Load analysis result from sessionStorage
+    if (jobId) {
+      const stored = sessionStorage.getItem(`result_${jobId}`);
+      if (stored) {
+        try { setResult(JSON.parse(stored)); } catch { /* ignore */ }
+      }
+    }
+  }, [jobId]);
 
   const handleLogout = () => {
     localStorage.removeItem('truthlens_auth');
@@ -261,10 +274,10 @@ export default function ArenaPage() {
       >
         {(() => {
           switch (activeVisualization) {
-            case "Synthesized Answer": return <SynthesisView onOpenVisualizer={(view) => setActiveVisualization(view)} result={null} />;
-            case "Constellation": return <Constellation selectedModels={selectedModels} result={null} />;
-            case "Heatmap": return <Heatmap selectedModels={selectedModels} result={null} />;
-            case "Knowledge Deck": return <KnowledgeDeck selectedModels={selectedModels} result={null} />;
+            case "Synthesized Answer": return <SynthesisView onOpenVisualizer={(view) => setActiveVisualization(view)} result={result} />;
+            case "Constellation": return <Constellation selectedModels={selectedModels} result={result} />;
+            case "Heatmap": return <Heatmap selectedModels={selectedModels} result={result} />;
+            case "Knowledge Deck": return <KnowledgeDeck selectedModels={selectedModels} result={result} />;
             case "Pipeline": return <Pipeline selectedModels={selectedModels} />;
             case "Evidence Network": return <EvidenceNetwork selectedModels={selectedModels} />;
             default: return <p className="text-[#5E6E81] font-['Inter'] animate-pulse text-lg tracking-widest uppercase">{activeVisualization} View</p>;
