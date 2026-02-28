@@ -132,6 +132,7 @@ async def run_pipeline(analysis_id: str, prompt: str, publish: PublishFn) -> Non
             ml_result = await run_ml_pipeline(
                 analysis_id=analysis_id,
                 model_outputs=models,
+                publish=publish,
             )
             warnings.extend(ml_result.get("warnings", []) or [])
         except Exception as exc:

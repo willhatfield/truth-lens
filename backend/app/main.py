@@ -1,7 +1,9 @@
 import asyncio
 import uuid
 import json
+import os
 from fastapi import FastAPI, Request, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from .schemas import AnalyzeRequest, AnalyzeResponse, EventEnvelope
@@ -11,6 +13,25 @@ from .orchestrator import run_pipeline
 load_dotenv()
 
 app = FastAPI()
+
+_FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "").strip()
+if _FRONTEND_ORIGIN:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[_FRONTEND_ORIGIN],
+        allow_credentials=True,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type", "Authorization"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type", "Authorization"],
+    )
+
 ws_manager = WSManager()
 
 
