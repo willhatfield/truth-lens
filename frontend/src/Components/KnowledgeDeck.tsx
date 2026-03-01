@@ -1,15 +1,9 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, BrainCircuit, Link as LinkIcon, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
+import { FileText, BrainCircuit, Link as LinkIcon } from 'lucide-react';
+import { MODEL_ID_MAP, MODEL_COLORS } from '../constants/models';
 import type { AnalysisResult } from '../types';
 
-const MODEL_COLORS: Record<string, string> = {
-  'GPT-4 (OpenAI)': '#10A37F',
-  'Gemini (Google)': '#428F54',
-  'Claude (Anthropic)': '#E8825A',
-  'Llama 3 (Meta)': '#A8555F',
-  'Kimi (Moonshot)': '#5273FB',
-};
 
 interface KnowledgeDeckProps {
   selectedModels: string[];
@@ -81,17 +75,11 @@ export default function KnowledgeDeck({ selectedModels, result }: KnowledgeDeckP
 
   // Filter logic based on selected models in the sidebar
   const visibleLogic = useMemo(() => {
-    return mockData.logic.filter(l => selectedModels.includes(l.model));
-  }, [selectedModels]);
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'VerifiedSafe': return <CheckCircle2 className="w-5 h-5 text-[#00D68F]" />;
-      case 'CautionUnverified': return <AlertTriangle className="w-5 h-5 text-[#FFB020]" />;
-      case 'Rejected': return <XCircle className="w-5 h-5 text-[#FF4757]" />;
-      default: return null;
-    }
-  };
+    const source = _modelResponses
+      ? _modelResponses.map(m => ({ modelId: MODEL_ID_MAP[m.modelId] ?? m.modelId, excerpt: m.excerpt }))
+      : mockData.logic.map(l => ({ modelId: l.model, excerpt: l.summary }));
+    return source.filter(m => selectedModels.includes(m.modelId));
+  }, [_modelResponses, selectedModels]);
 
   return (
     <div className="w-full h-full p-8 overflow-hidden flex flex-col">
@@ -131,28 +119,27 @@ export default function KnowledgeDeck({ selectedModels, result }: KnowledgeDeckP
               <p className="text-[#5E6E81] text-center italic mt-10">Select models from the sidebar to view their logic.</p>
             ) : (
               visibleLogic.map((logic, idx) => (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.1 }}
-                  key={logic.model} 
+                  key={logic.modelId}
                   className="bg-[#0A0E1A] p-4 rounded-xl border border-[#2C3A50]/50"
                 >
                   <div className="flex justify-between items-center mb-3">
-                    <span 
+                    <span
                       className="text-xs font-bold px-2.5 py-1 rounded-md"
-                      style={{ 
-                        color: MODEL_COLORS[logic.model], 
-                        backgroundColor: `${MODEL_COLORS[logic.model]}15`,
-                        border: `1px solid ${MODEL_COLORS[logic.model]}40`
+                      style={{
+                        color: MODEL_COLORS[logic.modelId],
+                        backgroundColor: `${MODEL_COLORS[logic.modelId]}15`,
+                        border: `1px solid ${MODEL_COLORS[logic.modelId]}40`
                       }}
                     >
-                      {logic.model}
+                      {logic.modelId}
                     </span>
-                    {getStatusIcon(logic.status)}
                   </div>
                   <p className="text-[#EBF0FF] text-sm leading-relaxed">
-                    {logic.summary}
+                    {logic.excerpt}
                   </p>
                 </motion.div>
               ))
@@ -167,36 +154,64 @@ export default function KnowledgeDeck({ selectedModels, result }: KnowledgeDeckP
             <h3 className="text-[#EBF0FF] font-semibold tracking-wide uppercase text-sm">Cited Evidence</h3>
           </div>
           <div className="p-6 overflow-y-auto no-scrollbar flex-1 space-y-4">
-            {mockData.evidence.map((item, idx) => (
-              <motion.div 
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.15 }}
-                key={item.id} 
-                // 1. ADDED ONCLICK TO OPEN URL IN NEW TAB
-                onClick={() => window.open(item.url, '_blank')}
-                className="group relative bg-[#0A0E1A] p-4 rounded-xl border border-[#2C3A50]/50 hover:border-[#A9BDE8]/50 transition-colors cursor-pointer"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  {/* 2. BUMPED PADDING FROM pr-8 TO pr-14 */}
-                  <h4 className="text-[#EBF0FF] font-semibold text-sm leading-snug group-hover:text-[#A9BDE8] transition-colors pr-14">
-                    {item.title}
-                  </h4>
-                  <div 
-                    className="absolute top-4 right-4 flex items-center justify-center w-8 h-8 rounded-full font-bold text-xs shrink-0"
-                    style={{ 
-                      backgroundColor: item.trustScore > 80 ? '#00D68F20' : '#FF475720',
-                      color: item.trustScore > 80 ? '#00D68F' : '#FF4757',
-                      border: `1px solid ${item.trustScore > 80 ? '#00D68F50' : '#FF475750'}`
-                    }}
-                  >
-                    {item.trustScore}
+            {_citedEvidence && _citedEvidence.length > 0 ? (
+              _citedEvidence.map((item, idx) => (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.15 }}
+                  key={item.passageId}
+                  className="relative bg-[#0A0E1A] p-4 rounded-xl border border-[#2C3A50]/50"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="text-[#EBF0FF] font-semibold text-sm leading-snug pr-14">
+                      {item.claimText}
+                    </h4>
+                    <div
+                      className="absolute top-4 right-4 flex items-center justify-center w-8 h-8 rounded-full font-bold text-xs shrink-0"
+                      style={{
+                        backgroundColor: '#00D68F20',
+                        color: '#00D68F',
+                        border: '1px solid #00D68F50'
+                      }}
+                    >
+                      {Math.round(item.prob * 100)}
+                    </div>
                   </div>
-                </div>
-                {/* 3. ADDED pr-14 TO SUBTITLE JUST IN CASE IT GETS LONG */}
-                <p className="text-[#90A2B3] text-xs uppercase tracking-wider pr-14">{item.source}</p>
-              </motion.div>
-            ))}
+                  <p className="text-[#90A2B3] text-xs uppercase tracking-wider pr-14">{item.passageId}</p>
+                </motion.div>
+              ))
+            ) : result ? (
+              <p className="text-[#5E6E81] text-center italic mt-10">No external evidence data available.</p>
+            ) : (
+              mockData.evidence.map((item, idx) => (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.15 }}
+                  key={item.id}
+                  onClick={() => window.open(item.url, '_blank')}
+                  className="group relative bg-[#0A0E1A] p-4 rounded-xl border border-[#2C3A50]/50 hover:border-[#A9BDE8]/50 transition-colors cursor-pointer"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="text-[#EBF0FF] font-semibold text-sm leading-snug group-hover:text-[#A9BDE8] transition-colors pr-14">
+                      {item.title}
+                    </h4>
+                    <div
+                      className="absolute top-4 right-4 flex items-center justify-center w-8 h-8 rounded-full font-bold text-xs shrink-0"
+                      style={{
+                        backgroundColor: item.trustScore > 80 ? '#00D68F20' : '#FF475720',
+                        color: item.trustScore > 80 ? '#00D68F' : '#FF4757',
+                        border: `1px solid ${item.trustScore > 80 ? '#00D68F50' : '#FF475750'}`
+                      }}
+                    >
+                      {item.trustScore}
+                    </div>
+                  </div>
+                  <p className="text-[#90A2B3] text-xs uppercase tracking-wider pr-14">{item.source}</p>
+                </motion.div>
+              ))
+            )}
           </div>
         </div>
 

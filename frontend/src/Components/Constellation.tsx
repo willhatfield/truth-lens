@@ -4,20 +4,13 @@ import { OrbitControls, Sphere, Line, useCursor, Text, Float } from '@react-thre
 import { motion, AnimatePresence } from 'framer-motion';
 import * as THREE from 'three';
 import type { AnalysisResult } from '../types';
+import { MODEL_ID_MAP, MODEL_COLORS } from '../constants/models';
 
 // --- STYLING CONSTANTS ---
 const TRUST_COLORS: Record<string, string> = {
   VerifiedSafe: '#00D68F',
   CautionUnverified: '#FFB020',
   Rejected: '#FF4757',
-};
-
-const MODEL_COLORS: Record<string, string> = {
-  'GPT-4 (OpenAI)': '#10A37F',
-  'Gemini (Google)': '#428F54',
-  'Claude (Anthropic)': '#E8825A',
-  'Llama 3 (Meta)': '#A8555F',
-  'Kimi (Moonshot)': '#5273FB',
 };
 
 const MODELS = Object.keys(MODEL_COLORS);
@@ -30,7 +23,7 @@ const MOCK_TEXTS = [
 ];
 
 interface Cluster {
-  id: number;
+  id: number | string;
   position: [number, number, number];
   text: string;
   isOutlier: boolean;
@@ -38,7 +31,7 @@ interface Cluster {
 
 interface ClaimNode {
   id: string;
-  clusterId: number;
+  clusterId: number | string | null;
   model: string;
   position: [number, number, number];
   trustStatus: 'VerifiedSafe' | 'CautionUnverified' | 'Rejected';
@@ -313,7 +306,20 @@ export default function Constellation({ selectedModels, result }: ConstellationP
     return { clusterHubs, claimNodes };
   }, [result]);
 
-  const { nodes, clusters } = useMemo(() => generateGraphData(), []);
+  const { nodes, clusters } = useMemo(() => {
+    if (_realNodes) {
+      return {
+        clusters: _realNodes.clusterHubs,
+        nodes: _realNodes.claimNodes.map(n => ({
+          ...n,
+          model: MODEL_ID_MAP[n.model] ?? n.model,
+          confidence: n.trustStatus === 'VerifiedSafe' ? 85
+                    : n.trustStatus === 'CautionUnverified' ? 50 : 20,
+        })),
+      };
+    }
+    return generateGraphData();
+  }, [_realNodes]);
   const [activeNode, setActiveNode] = useState<ClaimNode | null>(null);
 
   const visibleNodes = nodes.filter(node => selectedModels.includes(node.model));
@@ -338,12 +344,13 @@ export default function Constellation({ selectedModels, result }: ConstellationP
           ))}
 
           {visibleNodes.map((node) => {
+            const myCluster = clusters.find(c => c.id === node.clusterId);
+            if (!myCluster) return null;
             const isSelected = activeNode?.id === node.id;
             const isDimmed = activeClusterId !== undefined && activeClusterId !== node.clusterId;
-            const myCluster = clusters.find(c => c.id === node.clusterId)!;
 
             return (
-              <InteractiveNode 
+              <InteractiveNode
                 key={node.id}
                 node={node}
                 clusterPos={myCluster.position}

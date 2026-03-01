@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { ShieldCheck, Activity, ChevronRight, ExternalLink, BrainCircuit, Database, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AnalysisResult } from '../types';
+import { MODEL_ID_MAP, MODEL_COLORS } from '../constants/models';
 
 interface SynthesisViewProps {
   onOpenVisualizer: (view: string) => void;
@@ -30,61 +31,54 @@ const INITIAL_SYNTHESIS: SynthesisBlock[] = [
   {
     id: 's1',
     text: "Intermittent fasting has been consistently shown to reduce insulin resistance by 15-30% in short-term clinical trials. ",
-    models: ['Chat', 'Gemini', 'Claude'],
+    models: ['GPT-4 (OpenAI)', 'Gemini (Google)', 'Claude (Anthropic)'],
     trust: 'VerifiedSafe',
     expandedReasoning: "3 models strongly agreed on this claim. Cross-referenced with 4 medical journals including NEJM, showing exact statistical alignment."
   },
   {
     id: 's2',
     text: "It achieves this primarily by aligning nutrient intake with natural circadian rhythms, allowing pancreatic cells to rest. ",
-    models: ['Gemini', 'Kimi'],
+    models: ['Gemini (Google)', 'Kimi (Moonshot)'],
     trust: 'VerifiedSafe',
     expandedReasoning: "Extracted primarily from Gemini's biomedical reasoning and verified against the Salk Institute circadian rhythm studies."
   },
   {
     id: 's3',
     text: "Clinical data suggests that the metabolic switch to ketone utilization during the fasting window further stabilizes blood glucose levels. ",
-    models: ['Llama 3', 'Claude', 'Gemini'],
+    models: ['Llama 3 (Meta)', 'Claude (Anthropic)', 'Gemini (Google)'],
     trust: 'VerifiedSafe',
     expandedReasoning: "Consensus reached on the 'metabolic switch' mechanism. Verified against Johns Hopkins metabolic research papers (2023)."
   },
   {
     id: 's4',
     text: "Furthermore, cellular autophagy—the process of clearing damaged proteins—is significantly upregulated after 16 hours of fasting. ",
-    models: ['Gemini', 'Kimi', 'Chat'],
+    models: ['Gemini (Google)', 'Kimi (Moonshot)', 'GPT-4 (OpenAI)'],
     trust: 'VerifiedSafe',
     expandedReasoning: "High-confidence claim. All three models mapped this to the 16:8 protocol with 98% semantic overlap in biological pathways."
   },
   {
     id: 's5',
     text: "While early results are promising, long-term effectiveness compared to standard caloric restriction remains a point of active debate. ",
-    models: ['Chat', 'Claude', 'Llama 3', 'Gemini', 'Kimi'],
+    models: ['GPT-4 (OpenAI)', 'Claude (Anthropic)', 'Llama 3 (Meta)', 'Gemini (Google)', 'Kimi (Moonshot)'],
     trust: 'CautionUnverified',
     expandedReasoning: "All 5 models noted this nuance. The evidence network found conflicting longitudinal data, marking it as a 'Debated' topic."
   },
   {
     id: 's6',
     text: "Individuals with high baseline cortisol should exercise caution, as fasting can occasionally trigger an acute stress response. ",
-    models: ['Claude', 'Llama 3'],
+    models: ['Claude (Anthropic)', 'Llama 3 (Meta)'],
     trust: 'VerifiedSafe',
     expandedReasoning: "Sourced from endocrinology-specific datasets. Verified as a legitimate safety boundary for hormonal dysregulation."
   },
   {
     id: 's7',
     text: "Ultimately, the primary driver of success in reversing insulin resistance is the sustained reduction in liver fat through adherence. ",
-    models: ['Gemini', 'Chat', 'Kimi', 'Claude'],
+    models: ['Gemini (Google)', 'GPT-4 (OpenAI)', 'Kimi (Moonshot)', 'Claude (Anthropic)'],
     trust: 'VerifiedSafe',
     expandedReasoning: "Strong consensus. Models cross-referenced the 'Twin Cycles' hypothesis of diabetes reversal with 4 peer-reviewed sources."
   }
 ];
 
-const MODEL_COLORS: Record<string, string> = {
-  'Chat': '#10A37F',
-  'Gemini': '#428F54',
-  'Claude': '#E8825A',
-  'Llama 3': '#A8555F',
-  'Kimi': '#5273FB'
-};
 
 const TRUST_COLORS: Record<string, string> = {
   VerifiedSafe: '#00D68F',
@@ -101,7 +95,7 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
 
   // Derive data from real result, or fall back to mock
   const derivedSynthesis = useMemo<SynthesisBlock[]>(() => {
-    if (!result) return INITIAL_SYNTHESIS;
+    if (!result || !result.safe_answer || !result.clusters) return INITIAL_SYNTHESIS;
     const { clusters, cluster_scores, claims, safe_answer } = result;
     const supportedIds = new Set(safe_answer.supported_cluster_ids);
     return clusters
@@ -113,7 +107,7 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
           verdict === 'SAFE' ? 'VerifiedSafe' :
           verdict === 'CAUTION' ? 'CautionUnverified' : 'Rejected';
         const modelIds = [...new Set(
-          claims.filter(cl => c.claim_ids.includes(cl.claim_id)).map(cl => cl.model_id)
+          claims.filter(cl => c.claim_ids.includes(cl.claim_id)).map(cl => MODEL_ID_MAP[cl.model_id] ?? cl.model_id)
         )];
         return {
           id: c.cluster_id,
@@ -148,13 +142,13 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
   const allSegments = [...displaySynthesis, ...additionalBlocks];
 
   const handleExpandSynthesis = () => {
+    if (result) return;
     setIsExpanding(true);
     setTimeout(() => {
-      // 4. ENSURED NEW BLOCK MATCHES INTERFACE
       const newBlock: SynthesisBlock = {
         id: `s${allSegments.length + 1}`,
         text: "Deep Scan Result: Circadian-aligned fasting specifically optimizes the BMAL1 and CLOCK gene expressions, which are the master regulators of cellular insulin sensitivity. This 'genetic priming' distinguishes fasting from simple caloric restriction in clinical outcomes. ",
-        models: ['Gemini', 'Claude', 'Kimi'],
+        models: ['Gemini (Google)', 'Claude (Anthropic)', 'Kimi (Moonshot)'],
         trust: 'VerifiedSafe',
         expandedReasoning: "Cross-verified across 3 genomic studies. High semantic alignment between Gemini's biological summary and Claude's clinical analysis regarding BMAL1 pathways."
       };
@@ -213,7 +207,7 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
               {/* THE ANSWER CONTENT */}
               <div className="text-[#EBF0FF] text-[15px] leading-relaxed">
                 {displaySynthesis.map((segment) => (
-                  <span 
+                  <span
                     key={segment.id}
                     onClick={() => setActiveSegment(activeSegment === segment.id ? null : segment.id)}
                     className="cursor-pointer transition-all duration-300 rounded-sm px-1 mr-1"
@@ -222,6 +216,9 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
                     {segment.text}
                   </span>
                 ))}
+                {result && displaySynthesis.length === 0 && (
+                  <span className="text-[#5E6E81] italic">No verified claims were found for this query.</span>
+                )}
 
                 {/* THE EXPANDED BLOCKS ARE RENDERED HERE */}
                 <AnimatePresence>
@@ -243,10 +240,10 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
               {/* THE EXPAND ACTION BAR */}
               <div className="mt-8 pt-6 border-t border-[#2C3A50]/50 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     onClick={handleExpandSynthesis}
-                    disabled={isExpanding}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#1A2335] hover:bg-[#2C3A50] border border-[#588983]/40 rounded-lg transition-all group disabled:opacity-50"
+                    disabled={isExpanding || !!result}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#1A2335] hover:bg-[#2C3A50] border border-[#588983]/40 rounded-lg transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isExpanding ? (
                       <Activity className="w-4 h-4 text-[#588983] animate-spin" />
