@@ -54,6 +54,37 @@ export default function Pipeline({ selectedModels, pipelineData }: PipelineProps
   
   const getX = (val: number) => `${(val / 1200) * 100}%`;
   const getY = (val: number) => `${(val / 650) * 100}%`;
+  const clusterY: Record<ModelFlowInfo["cluster"], number> = {
+    top: Y.cTop,
+    center: Y.center,
+    bottom: Y.cBot,
+    none: Y.center,
+  };
+
+  const getFlow = (modelName: string): ModelFlowInfo => {
+    if (!selectedModels.includes(modelName)) {
+      return { extracted: false, cluster: "none", verified: false };
+    }
+    return pipelineData?.[modelName] ?? { extracted: true, cluster: "center", verified: true };
+  };
+
+  const isClusterActive = (clusterId: "top" | "center" | "bottom") =>
+    selectedModels.some((name) => getFlow(name).extracted && getFlow(name).cluster === clusterId);
+
+  const isClusterVerified = (clusterId: "top" | "center" | "bottom") =>
+    selectedModels.some((name) => {
+      const f = getFlow(name);
+      return f.extracted && f.cluster === clusterId && f.verified;
+    });
+
+  const isClusterRejected = (clusterId: "top" | "center" | "bottom") => {
+    const clusterModels = selectedModels.filter((name) => {
+      const f = getFlow(name);
+      return f.extracted && f.cluster === clusterId;
+    });
+    if (clusterModels.length === 0) return false;
+    return clusterModels.every((name) => !getFlow(name).verified);
+  };
 
   const FlowRiver = ({ x1, y1, x2, y2, color, isRejected = false, isActive = true, isDrop = false }: any) => {
     if (!isActive) return null;
@@ -118,33 +149,30 @@ export default function Pipeline({ selectedModels, pipelineData }: PipelineProps
           <FlowRiver x1={P.inR} y1={Y.center} x2={P.modL} y2={Y.r5} color={MODEL_COLORS['Kimi (Moonshot)']} isActive={selectedModels.includes('Kimi (Moonshot)')} />
 
           {/* 2. MODELS TO EXTRACTION */}
-          <FlowRiver x1={P.modR} y1={Y.r1} x2={P.extL} y2={Y.r1} color={MODEL_COLORS['GPT-4 (OpenAI)']} isActive={pipelineData ? !!pipelineData['GPT-4 (OpenAI)']?.extracted : selectedModels.includes('GPT-4 (OpenAI)')} />
-          <FlowRiver x1={P.modR} y1={Y.r2} x2={P.extL} y2={Y.r2} color={MODEL_COLORS['Gemini (Google)']} isActive={pipelineData ? !!pipelineData['Gemini (Google)']?.extracted : selectedModels.includes('Gemini (Google)')} />
-          <FlowRiver x1={P.modR} y1={Y.center} x2={P.extL} y2={Y.center} color={MODEL_COLORS['Claude (Anthropic)']} isActive={pipelineData ? !!pipelineData['Claude (Anthropic)']?.extracted : selectedModels.includes('Claude (Anthropic)')} />
-          <FlowRiver x1={P.modR} y1={Y.r4} x2={P.extL} y2={Y.r4} color={MODEL_COLORS['Llama 3 (Meta)']} isActive={pipelineData ? !!pipelineData['Llama 3 (Meta)']?.extracted : selectedModels.includes('Llama 3 (Meta)')} />
-          <FlowRiver x1={P.modR} y1={Y.r5} x2={P.extL} y2={Y.r5} color={MODEL_COLORS['Kimi (Moonshot)']} isActive={pipelineData ? !!pipelineData['Kimi (Moonshot)']?.extracted : selectedModels.includes('Kimi (Moonshot)')} />
+          <FlowRiver x1={P.modR} y1={Y.r1} x2={P.extL} y2={Y.r1} color={MODEL_COLORS['GPT-4 (OpenAI)']} isActive={getFlow('GPT-4 (OpenAI)').extracted} />
+          <FlowRiver x1={P.modR} y1={Y.r2} x2={P.extL} y2={Y.r2} color={MODEL_COLORS['Gemini (Google)']} isActive={getFlow('Gemini (Google)').extracted} />
+          <FlowRiver x1={P.modR} y1={Y.center} x2={P.extL} y2={Y.center} color={MODEL_COLORS['Claude (Anthropic)']} isActive={getFlow('Claude (Anthropic)').extracted} />
+          <FlowRiver x1={P.modR} y1={Y.r4} x2={P.extL} y2={Y.r4} color={MODEL_COLORS['Llama 3 (Meta)']} isActive={getFlow('Llama 3 (Meta)').extracted} />
+          <FlowRiver x1={P.modR} y1={Y.r5} x2={P.extL} y2={Y.r5} color={MODEL_COLORS['Kimi (Moonshot)']} isActive={getFlow('Kimi (Moonshot)').extracted} />
 
-          {/* 3. EXTRACTION TO CLUSTERING (Re-routed to avoid overlaps) */}
-          <FlowRiver x1={P.extR} y1={Y.r1} x2={P.cluL} y2={Y.cTop} color={MODEL_COLORS['GPT-4 (OpenAI)']} isActive={selectedModels.includes('GPT-4 (OpenAI)')} />
-          <FlowRiver x1={P.extR} y1={Y.r2} x2={P.cluL} y2={Y.cTop} color={MODEL_COLORS['Gemini (Google)']} isActive={selectedModels.includes('Gemini (Google)')} />
-          
-          <FlowRiver x1={P.extR} y1={Y.center} x2={P.cluL} y2={Y.center} color={MODEL_COLORS['Claude (Anthropic)']} isActive={selectedModels.includes('Claude (Anthropic)')} />
-          <FlowRiver x1={P.extR} y1={Y.r5} x2={P.cluL} y2={Y.center} color={MODEL_COLORS['Kimi (Moonshot)']} isActive={selectedModels.includes('Kimi (Moonshot)')} />
-
-          {/* Llama's Hallucination is now completely isolated at the bottom */}
-          <FlowRiver x1={P.extR} y1={Y.r4} x2={P.cluL} y2={Y.cBot} color={MODEL_COLORS['Llama 3 (Meta)']} isActive={selectedModels.includes('Llama 3 (Meta)')} />
+          {/* 3. EXTRACTION TO CLUSTERING (fully data-driven) */}
+          <FlowRiver x1={P.extR} y1={Y.r1} x2={P.cluL} y2={clusterY[getFlow('GPT-4 (OpenAI)').cluster]} color={MODEL_COLORS['GPT-4 (OpenAI)']} isActive={getFlow('GPT-4 (OpenAI)').extracted} />
+          <FlowRiver x1={P.extR} y1={Y.r2} x2={P.cluL} y2={clusterY[getFlow('Gemini (Google)').cluster]} color={MODEL_COLORS['Gemini (Google)']} isActive={getFlow('Gemini (Google)').extracted} />
+          <FlowRiver x1={P.extR} y1={Y.center} x2={P.cluL} y2={clusterY[getFlow('Claude (Anthropic)').cluster]} color={MODEL_COLORS['Claude (Anthropic)']} isActive={getFlow('Claude (Anthropic)').extracted} />
+          <FlowRiver x1={P.extR} y1={Y.r4} x2={P.cluL} y2={clusterY[getFlow('Llama 3 (Meta)').cluster]} color={MODEL_COLORS['Llama 3 (Meta)']} isActive={getFlow('Llama 3 (Meta)').extracted} />
+          <FlowRiver x1={P.extR} y1={Y.r5} x2={P.cluL} y2={clusterY[getFlow('Kimi (Moonshot)').cluster]} color={MODEL_COLORS['Kimi (Moonshot)']} isActive={getFlow('Kimi (Moonshot)').extracted} />
 
           {/* 4. CLUSTERING TO VERIFICATION */}
-          <FlowRiver x1={P.cluR} y1={Y.cTop} x2={P.verL} y2={Y.cTop} color="#00D68F" />
-          <FlowRiver x1={P.cluR} y1={Y.center} x2={P.verL} y2={Y.center} color="#00D68F" />
-          <FlowRiver x1={P.cluR} y1={Y.cBot} x2={P.verL} y2={Y.cBot} color="#FFB020" />
+          <FlowRiver x1={P.cluR} y1={Y.cTop} x2={P.verL} y2={Y.cTop} color={isClusterRejected("top") ? "#FF4757" : "#00D68F"} isActive={isClusterActive("top")} />
+          <FlowRiver x1={P.cluR} y1={Y.center} x2={P.verL} y2={Y.center} color={isClusterRejected("center") ? "#FF4757" : "#00D68F"} isActive={isClusterActive("center")} />
+          <FlowRiver x1={P.cluR} y1={Y.cBot} x2={P.verL} y2={Y.cBot} color={isClusterRejected("bottom") ? "#FF4757" : "#00D68F"} isActive={isClusterActive("bottom")} />
 
           {/* 5. VERIFICATION TO SYNTHESIS OR TRASH */}
-          <FlowRiver x1={P.verR} y1={Y.cTop} x2={P.ansL} y2={Y.center} color="#00D68F" />
-          <FlowRiver x1={P.verR} y1={Y.center} x2={P.ansL} y2={Y.center} color="#00D68F" />
-          
-          {/* Drop down to filtered (Perfect vertical drop, zero overlap) */}
-          <FlowRiver x1={X.verify} y1={P.verBot} x2={X.verify} y2={P.trashTop} color="#FF4757" isRejected={true} isDrop={true} />
+          <FlowRiver x1={P.verR} y1={Y.cTop} x2={P.ansL} y2={Y.center} color="#00D68F" isActive={isClusterVerified("top")} />
+          <FlowRiver x1={P.verR} y1={Y.center} x2={P.ansL} y2={Y.center} color="#00D68F" isActive={isClusterVerified("center")} />
+          <FlowRiver x1={P.verR} y1={Y.cBot} x2={P.ansL} y2={Y.center} color="#00D68F" isActive={isClusterVerified("bottom")} />
+
+          <FlowRiver x1={X.verify} y1={P.verBot} x2={X.verify} y2={P.trashTop} color="#FF4757" isRejected={true} isDrop={true} isActive={isClusterRejected("top") || isClusterRejected("center") || isClusterRejected("bottom")} />
         </svg>
 
         {/* --- HTML NODES LAYER (Solid blocks that sit over the lines) --- */}
@@ -168,39 +196,39 @@ export default function Pipeline({ selectedModels, pipelineData }: PipelineProps
               <div className="absolute -translate-x-1/2 -translate-y-1/2 px-6 py-2 bg-[#1E2738] rounded-full border border-[#3A4B66] z-20 shadow-lg w-[110px] flex justify-center" style={{ left: getX(X.models), top: getY(m.y) }}>
                 <span className="text-[12px] font-bold" style={{ color: MODEL_COLORS[m.modelKey] }}>{m.name}</span>
               </div>
-              <div className="absolute -translate-x-1/2 -translate-y-1/2 bg-[#1E2738] p-2.5 rounded-full border border-[#3A4B66] z-20 shadow-lg w-10 flex justify-center" style={{ left: getX(X.extract), top: getY(m.y) }}>
-                <Database className="w-4 h-4 text-[#90A2B3]" />
+              <div className={`absolute -translate-x-1/2 -translate-y-1/2 p-2.5 rounded-full border z-20 shadow-lg w-10 flex justify-center ${getFlow(m.modelKey).extracted ? 'bg-[#1E2738] border-[#3A4B66]' : 'bg-[#0A0E1A] border-[#2C3A50]/50'}`} style={{ left: getX(X.extract), top: getY(m.y) }}>
+                <Database className={`w-4 h-4 ${getFlow(m.modelKey).extracted ? 'text-[#90A2B3]' : 'text-[#2C3A50]'}`} />
               </div>
             </div>
           );
         })}
 
         {/* CLUSTERING NODES */}
-        <div className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-20 h-20 bg-[#1E2738] rounded-full border border-[#3A4B66] z-20 shadow-lg" style={{ left: getX(X.cluster), top: getY(Y.cTop) }}>
-          <Network className="w-5 h-5 text-[#A9BDE8] mb-1" />
-          <span className="text-[9px] text-[#EBF0FF] font-bold">Consensus</span>
+        <div className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-20 h-20 rounded-full border z-20 shadow-lg transition-colors ${isClusterActive('top') ? 'bg-[#1E2738] border-[#3A4B66]' : 'bg-[#0A0E1A] border-[#2C3A50]/30'}`} style={{ left: getX(X.cluster), top: getY(Y.cTop) }}>
+          <Network className={`w-5 h-5 mb-1 ${isClusterActive('top') ? 'text-[#A9BDE8]' : 'text-[#2C3A50]'}`} />
+          <span className={`text-[9px] font-bold ${isClusterActive('top') ? 'text-[#EBF0FF]' : 'text-[#2C3A50]'}`}>Consensus</span>
         </div>
         
-        <div className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-20 h-20 bg-[#1E2738] rounded-full border border-[#3A4B66] z-20 shadow-lg" style={{ left: getX(X.cluster), top: getY(Y.center) }}>
-          <Network className="w-5 h-5 text-[#A9BDE8] mb-1" />
-          <span className="text-[9px] text-[#EBF0FF] font-bold">Consensus</span>
+        <div className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-20 h-20 rounded-full border z-20 shadow-lg transition-colors ${isClusterActive('center') ? 'bg-[#1E2738] border-[#3A4B66]' : 'bg-[#0A0E1A] border-[#2C3A50]/30'}`} style={{ left: getX(X.cluster), top: getY(Y.center) }}>
+          <Network className={`w-5 h-5 mb-1 ${isClusterActive('center') ? 'text-[#A9BDE8]' : 'text-[#2C3A50]'}`} />
+          <span className={`text-[9px] font-bold ${isClusterActive('center') ? 'text-[#EBF0FF]' : 'text-[#2C3A50]'}`}>Consensus</span>
         </div>
 
-        <div className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-20 h-20 bg-[#1E2738] rounded-full border border-[#FFB020]/40 z-20 shadow-lg" style={{ left: getX(X.cluster), top: getY(Y.cBot) }}>
-          <span className="text-[10px] text-[#FFB020] font-bold text-center leading-tight">Solo<br/>Claim</span>
+        <div className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-20 h-20 rounded-full border z-20 shadow-lg transition-colors ${isClusterActive('bottom') ? 'bg-[#1E2738] border-[#FFB020]/40' : 'bg-[#0A0E1A] border-[#2C3A50]/30'}`} style={{ left: getX(X.cluster), top: getY(Y.cBot) }}>
+          <span className={`text-[10px] font-bold text-center leading-tight ${isClusterActive('bottom') ? 'text-[#FFB020]' : 'text-[#2C3A50]'}`}>Solo<br/>Claim</span>
         </div>
 
         {/* VERIFICATION GATES */}
-        <div className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-12 h-12 bg-[#161D2E] rounded-xl border border-[#00D68F]/60 z-20 shadow-[0_0_20px_rgba(0,214,143,0.15)]" style={{ left: getX(X.verify), top: getY(Y.cTop) }}>
-          <ShieldCheck className="w-6 h-6 text-[#00D68F]" />
+        <div className={`absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-12 h-12 rounded-xl border z-20 transition-colors ${!isClusterActive('top') ? 'bg-[#0A0E1A] border-[#2C3A50]/30' : isClusterRejected('top') ? 'bg-[#161D2E] border-[#FF4757]/60 shadow-[0_0_20px_rgba(255,71,87,0.15)]' : 'bg-[#161D2E] border-[#00D68F]/60 shadow-[0_0_20px_rgba(0,214,143,0.15)]'}`} style={{ left: getX(X.verify), top: getY(Y.cTop) }}>
+          {isClusterRejected('top') ? <ShieldAlert className="w-6 h-6 text-[#FF4757]" /> : <ShieldCheck className={`w-6 h-6 ${isClusterActive('top') ? 'text-[#00D68F]' : 'text-[#2C3A50]'}`} />}
         </div>
         
-        <div className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-12 h-12 bg-[#161D2E] rounded-xl border border-[#00D68F]/60 z-20 shadow-[0_0_20px_rgba(0,214,143,0.15)]" style={{ left: getX(X.verify), top: getY(Y.center) }}>
-          <ShieldCheck className="w-6 h-6 text-[#00D68F]" />
+        <div className={`absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-12 h-12 rounded-xl border z-20 transition-colors ${!isClusterActive('center') ? 'bg-[#0A0E1A] border-[#2C3A50]/30' : isClusterRejected('center') ? 'bg-[#161D2E] border-[#FF4757]/60 shadow-[0_0_20px_rgba(255,71,87,0.15)]' : 'bg-[#161D2E] border-[#00D68F]/60 shadow-[0_0_20px_rgba(0,214,143,0.15)]'}`} style={{ left: getX(X.verify), top: getY(Y.center) }}>
+          {isClusterRejected('center') ? <ShieldAlert className="w-6 h-6 text-[#FF4757]" /> : <ShieldCheck className={`w-6 h-6 ${isClusterActive('center') ? 'text-[#00D68F]' : 'text-[#2C3A50]'}`} />}
         </div>
 
-        <div className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-12 h-12 bg-[#161D2E] rounded-xl border border-[#FF4757]/60 z-20 shadow-[0_0_20px_rgba(255,71,87,0.15)]" style={{ left: getX(X.verify), top: getY(Y.cBot) }}>
-          <ShieldAlert className="w-6 h-6 text-[#FF4757]" />
+        <div className={`absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-12 h-12 rounded-xl border z-20 transition-colors ${!isClusterActive('bottom') ? 'bg-[#0A0E1A] border-[#2C3A50]/30' : isClusterRejected('bottom') ? 'bg-[#161D2E] border-[#FF4757]/60 shadow-[0_0_20px_rgba(255,71,87,0.15)]' : 'bg-[#161D2E] border-[#00D68F]/60 shadow-[0_0_20px_rgba(0,214,143,0.15)]'}`} style={{ left: getX(X.verify), top: getY(Y.cBot) }}>
+          {isClusterRejected('bottom') ? <ShieldAlert className="w-6 h-6 text-[#FF4757]" /> : <ShieldCheck className={`w-6 h-6 ${isClusterActive('bottom') ? 'text-[#00D68F]' : 'text-[#2C3A50]'}`} />}
         </div>
 
         {/* REJECTED BUCKET */}

@@ -63,7 +63,6 @@ function normalizeResult(raw: any): AnalysisResult {
 
   const pipelineFlow = raw?.pipelineFlow ?? (() => {
     const out: Record<string, { extracted: boolean; cluster: "top" | "center" | "bottom" | "none"; verified: boolean }> = {};
-    const labelOrder = ["top", "center", "bottom"] as const;
     for (const m of raw?.models ?? []) {
       const label = MODEL_ID_MAP[m.model_id] ?? m.model_id;
       const modelClaims = claims.filter((c: any) => c.model_id === m.model_id);
@@ -73,10 +72,15 @@ function normalizeResult(raw: any): AnalysisResult {
       if (extracted) {
         const firstClaim = modelClaims[0];
         const clusterForClaim = clusters.find((c: any) => (c.claim_ids ?? []).includes(firstClaim.claim_id));
-        const idx = Math.max(0, clusters.findIndex((c: any) => c.cluster_id === clusterForClaim?.cluster_id));
-        clusterLabel = labelOrder[Math.min(idx, 2)] ?? "center";
         const clusterScore = cluster_scores.find((s: any) => s.cluster_id === clusterForClaim?.cluster_id);
-        verified = clusterScore?.verdict === "SAFE";
+        const agreementCount = clusterScore?.agreement?.count ?? 1;
+        const verdict = clusterScore?.verdict;
+
+        // Agreement (2+ models) goes to consensus lanes; solo claims go to bottom.
+        if (agreementCount <= 1) clusterLabel = "bottom";
+        else clusterLabel = verdict === "SAFE" ? "top" : "center";
+
+        verified = verdict === "SAFE";
       }
       out[label] = { extracted, cluster: clusterLabel, verified };
     }
