@@ -3,6 +3,7 @@ import { ShieldCheck, Activity, ChevronRight, ExternalLink, BrainCircuit, Databa
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AnalysisResult } from '../types';
 import { MODEL_ID_MAP, MODEL_COLORS } from '../constants/models';
+import React from 'react';
 
 interface SynthesisViewProps {
   onOpenVisualizer: (view: string) => void;

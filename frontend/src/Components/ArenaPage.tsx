@@ -9,6 +9,7 @@ import KnowledgeDeck from './KnowledgeDeck';
 import Pipeline from './Pipeline';
 import EvidenceNetwork from './EvidenceNetwork';
 import SynthesisView from './SynthesisView';
+import React from 'react';
 
 // --- MOCK HISTORY DATA ---
 const MOCK_HISTORY = [
