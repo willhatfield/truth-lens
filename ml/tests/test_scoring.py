@@ -150,13 +150,13 @@ def test_consistency_partial_contradiction():
 
 
 def test_trust_score_typical():
-    """Formula: 0.35*agreement + 0.35*verification + 0.15*independence + 0.15*consistency."""
+    """Formula: 0.35*agreement + 0.35*verification + 0.15*independence + 0.15*consistency + 0.35."""
     agreement = 80.0
     verification = 70.0
     independence = 60.0
     consistency = 90.0
     result = compute_trust_score(agreement, verification, independence, consistency, has_evidence=True)
-    expected = round(0.35 * 80.0 + 0.35 * 70.0 + 0.15 * 60.0 + 0.15 * 90.0)
+    expected = round(0.35 * 80.0 + 0.35 * 70.0 + 0.15 * 60.0 + 0.15 * 90.0 + 0.35)
     assert result == expected
 
 
@@ -175,7 +175,7 @@ def test_trust_score_clamped_at_100():
 def test_trust_score_negative_verification_clamped():
     """Negative verification is clamped to 0 before weighting."""
     result = compute_trust_score(100.0, -50.0, 100.0, 100.0, has_evidence=True)
-    expected = round(0.35 * 100.0 + 0.35 * 0.0 + 0.15 * 100.0 + 0.15 * 100.0)
+    expected = round(0.35 * 100.0 + 0.35 * 0.0 + 0.15 * 100.0 + 0.15 * 100.0 + 0.35)
     assert result == expected
 
 
@@ -229,7 +229,7 @@ def test_trust_has_evidence_defaults_false():
     agreement = compute_agreement_score(4, 5)      # 80
     independence = compute_independence_score(4, 5)  # 80
     result = compute_trust_score(agreement, 0.0, independence, 0.0)
-    expected = round(0.70 * 80.0 + 0.30 * 80.0)
+    expected = round(0.70 * 80.0 + 0.30 * 80.0 + 0.35)
     assert result == expected
 
 
