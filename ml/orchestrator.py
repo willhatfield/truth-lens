@@ -438,7 +438,7 @@ def _run_score_stage(analysis_id, claims, clusters,
             "claims": claims_map,
             "nli_results": nli_results,
         })
-        cluster_scores = score_resp.get("cluster_scores", [])
+        cluster_scores = score_resp.get("scores", [])
         state["warnings"].extend(
             score_resp.get("warnings", [])[:_MAX_WARNINGS])
     except Exception as exc:
