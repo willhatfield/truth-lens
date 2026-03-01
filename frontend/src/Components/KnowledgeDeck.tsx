@@ -1,23 +1,9 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, BrainCircuit, Link as LinkIcon, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
+import { FileText, BrainCircuit, Link as LinkIcon } from 'lucide-react';
+import { MODEL_ID_MAP, MODEL_COLORS } from '../constants/models';
 import type { AnalysisResult } from '../types';
 
-const MODEL_ID_MAP: Record<string, string> = {
-  openai_gpt4: 'GPT-4 (OpenAI)',
-  gemini_2_0: 'Gemini (Google)',
-  claude_sonnet_4: 'Claude (Anthropic)',
-  kimi: 'Kimi (Moonshot)',
-  llama_3_8b: 'Llama 3 (Meta)',
-};
-
-const MODEL_COLORS: Record<string, string> = {
-  'GPT-4 (OpenAI)': '#10A37F',
-  'Gemini (Google)': '#428F54',
-  'Claude (Anthropic)': '#E8825A',
-  'Llama 3 (Meta)': '#A8555F',
-  'Kimi (Moonshot)': '#5273FB',
-};
 
 interface KnowledgeDeckProps {
   selectedModels: string[];
@@ -94,15 +80,6 @@ export default function KnowledgeDeck({ selectedModels, result }: KnowledgeDeckP
       : mockData.logic.map(l => ({ modelId: l.model, excerpt: l.summary }));
     return source.filter(m => selectedModels.includes(m.modelId));
   }, [_modelResponses, selectedModels]);
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'VerifiedSafe': return <CheckCircle2 className="w-5 h-5 text-[#00D68F]" />;
-      case 'CautionUnverified': return <AlertTriangle className="w-5 h-5 text-[#FFB020]" />;
-      case 'Rejected': return <XCircle className="w-5 h-5 text-[#FF4757]" />;
-      default: return null;
-    }
-  };
 
   return (
     <div className="w-full h-full p-8 overflow-hidden flex flex-col">
@@ -184,7 +161,7 @@ export default function KnowledgeDeck({ selectedModels, result }: KnowledgeDeckP
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.15 }}
                   key={item.passageId}
-                  className="bg-[#0A0E1A] p-4 rounded-xl border border-[#2C3A50]/50"
+                  className="relative bg-[#0A0E1A] p-4 rounded-xl border border-[#2C3A50]/50"
                 >
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="text-[#EBF0FF] font-semibold text-sm leading-snug pr-14">

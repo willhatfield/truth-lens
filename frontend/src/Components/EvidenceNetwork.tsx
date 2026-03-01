@@ -97,7 +97,7 @@ export default function EvidenceNetwork({ selectedModels: _selectedModels, resul
         return {
           id: passageId,
           type: 'evidence' as const,
-          label: passageId,
+          label: passageId.length > 20 ? passageId.slice(0, 20) + '…' : passageId,
           nli: nliLabel,
           relevance,
           url: '#',
@@ -172,7 +172,7 @@ export default function EvidenceNetwork({ selectedModels: _selectedModels, resul
             </defs>
 
             {/* EDGES (Lines) */}
-            {(layoutData.links ?? LINKS).map((link, i) => {
+            {layoutData.links.map((link, i) => {
               const source = layoutData.claims.find(c => c.id === link.source);
               const target = layoutData.sources.find(s => s.id === link.target);
               if (!source || !target) return null;
@@ -239,7 +239,7 @@ export default function EvidenceNetwork({ selectedModels: _selectedModels, resul
             
             let isConnected = false;
             if (hasAnyFocus) {
-               isConnected = isFocus || (layoutData.links ?? LINKS).some(l =>
+               isConnected = isFocus || layoutData.links.some(l =>
                  (l.source === (hoveredNode || activeNode?.id) && l.target === node.id) ||
                  (l.target === (hoveredNode || activeNode?.id) && l.source === node.id)
                );
@@ -290,7 +290,7 @@ export default function EvidenceNetwork({ selectedModels: _selectedModels, resul
                       {node.label}
                     </span>
                     <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-[#1A2335] border border-[#2C3A50] shadow-md" style={{ color: nodeColor }}>
-                      {(node as any).nli} ({(node as any).relevance * 100}%)
+                      {(node as any).nli} ({Math.round((node as any).relevance * 100)}%)
                     </span>
                   </div>
                 )}

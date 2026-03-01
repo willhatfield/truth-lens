@@ -4,28 +4,13 @@ import { OrbitControls, Sphere, Line, useCursor, Text, Float } from '@react-thre
 import { motion, AnimatePresence } from 'framer-motion';
 import * as THREE from 'three';
 import type { AnalysisResult } from '../types';
+import { MODEL_ID_MAP, MODEL_COLORS } from '../constants/models';
 
 // --- STYLING CONSTANTS ---
 const TRUST_COLORS: Record<string, string> = {
   VerifiedSafe: '#00D68F',
   CautionUnverified: '#FFB020',
   Rejected: '#FF4757',
-};
-
-const MODEL_ID_MAP: Record<string, string> = {
-  openai_gpt4: 'GPT-4 (OpenAI)',
-  gemini_2_0: 'Gemini (Google)',
-  claude_sonnet_4: 'Claude (Anthropic)',
-  kimi: 'Kimi (Moonshot)',
-  llama_3_8b: 'Llama 3 (Meta)',
-};
-
-const MODEL_COLORS: Record<string, string> = {
-  'GPT-4 (OpenAI)': '#10A37F',
-  'Gemini (Google)': '#428F54',
-  'Claude (Anthropic)': '#E8825A',
-  'Llama 3 (Meta)': '#A8555F',
-  'Kimi (Moonshot)': '#5273FB',
 };
 
 const MODELS = Object.keys(MODEL_COLORS);
@@ -359,12 +344,13 @@ export default function Constellation({ selectedModels, result }: ConstellationP
           ))}
 
           {visibleNodes.map((node) => {
+            const myCluster = clusters.find(c => c.id === node.clusterId);
+            if (!myCluster) return null;
             const isSelected = activeNode?.id === node.id;
             const isDimmed = activeClusterId !== undefined && activeClusterId !== node.clusterId;
-            const myCluster = clusters.find(c => c.id === node.clusterId)!;
 
             return (
-              <InteractiveNode 
+              <InteractiveNode
                 key={node.id}
                 node={node}
                 clusterPos={myCluster.position}
