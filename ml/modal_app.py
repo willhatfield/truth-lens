@@ -73,6 +73,7 @@ gpu_image = (
         "pydantic==2.10.6",
         "numpy==1.26.4",
         "fastapi[standard]>=0.115.0",
+        "accelerate>=0.26.0",
     )
     .env(SHARED_ENV)
     .add_local_python_source(
