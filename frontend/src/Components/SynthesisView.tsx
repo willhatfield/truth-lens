@@ -78,6 +78,14 @@ const INITIAL_SYNTHESIS: SynthesisBlock[] = [
   }
 ];
 
+const MODEL_ID_MAP: Record<string, string> = {
+  openai_gpt4: 'Chat',
+  gemini_2_0: 'Gemini',
+  claude_sonnet_4: 'Claude',
+  kimi: 'Kimi',
+  llama_3_8b: 'Llama 3',
+};
+
 const MODEL_COLORS: Record<string, string> = {
   'Chat': '#10A37F',
   'Gemini': '#428F54',
@@ -101,7 +109,7 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
 
   // Derive data from real result, or fall back to mock
   const derivedSynthesis = useMemo<SynthesisBlock[]>(() => {
-    if (!result) return INITIAL_SYNTHESIS;
+    if (!result || !result.safe_answer || !result.clusters) return INITIAL_SYNTHESIS;
     const { clusters, cluster_scores, claims, safe_answer } = result;
     const supportedIds = new Set(safe_answer.supported_cluster_ids);
     return clusters
@@ -113,7 +121,7 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
           verdict === 'SAFE' ? 'VerifiedSafe' :
           verdict === 'CAUTION' ? 'CautionUnverified' : 'Rejected';
         const modelIds = [...new Set(
-          claims.filter(cl => c.claim_ids.includes(cl.claim_id)).map(cl => cl.model_id)
+          claims.filter(cl => c.claim_ids.includes(cl.claim_id)).map(cl => MODEL_ID_MAP[cl.model_id] ?? cl.model_id)
         )];
         return {
           id: c.cluster_id,
@@ -213,7 +221,7 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
               {/* THE ANSWER CONTENT */}
               <div className="text-[#EBF0FF] text-[15px] leading-relaxed">
                 {displaySynthesis.map((segment) => (
-                  <span 
+                  <span
                     key={segment.id}
                     onClick={() => setActiveSegment(activeSegment === segment.id ? null : segment.id)}
                     className="cursor-pointer transition-all duration-300 rounded-sm px-1 mr-1"
@@ -222,6 +230,9 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
                     {segment.text}
                   </span>
                 ))}
+                {result && displaySynthesis.length === 0 && (
+                  <span className="text-[#5E6E81] italic">No verified claims were found for this query.</span>
+                )}
 
                 {/* THE EXPANDED BLOCKS ARE RENDERED HERE */}
                 <AnimatePresence>

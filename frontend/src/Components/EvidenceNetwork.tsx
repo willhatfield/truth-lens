@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Link as LinkIcon, AlertCircle, CheckCircle2, XCircle, ExternalLink } from 'lucide-react';
+import type { AnalysisResult } from '../types';
 
 interface EvidenceNetworkProps {
   selectedModels: string[];
+  result?: AnalysisResult | null;
 }
 
 // --- MOCK DATA ---
@@ -47,7 +49,7 @@ const NLI_COLORS: Record<string, string> = {
   neutral: '#949fb8'
 };
 
-export default function EvidenceNetwork({ selectedModels: _selectedModels }: EvidenceNetworkProps) {
+export default function EvidenceNetwork({ selectedModels: _selectedModels, result }: EvidenceNetworkProps) {
   const [activeNode, setActiveNode] = useState<any | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
 
@@ -64,6 +66,58 @@ export default function EvidenceNetwork({ selectedModels: _selectedModels }: Evi
       return startY + (index * (endY - startY) / (total - 1));
     };
 
+    if (result) {
+      const TRUST_MAP: Record<string, string> = {
+        SAFE: 'VerifiedSafe',
+        CAUTION: 'CautionUnverified',
+        REJECT: 'Rejected',
+      };
+      const realClaims = result.clusters.map((c, i) => {
+        const score = result.cluster_scores.find(s => s.cluster_id === c.cluster_id);
+        const trust = TRUST_MAP[score?.verdict ?? 'SAFE'] ?? 'VerifiedSafe';
+        return {
+          id: c.cluster_id,
+          type: 'claim' as const,
+          label: c.representative_text.slice(0, 80) + (c.representative_text.length > 80 ? '…' : ''),
+          trust,
+          x: COL_CLAIM_X,
+          y: getY(i, result.clusters.length, 200, 600),
+        };
+      });
+
+      const uniquePassageIds = [...new Set(result.nli_results.map(r => r.passage_id))];
+      const realSources = uniquePassageIds.slice(0, 7).map((passageId, i) => {
+        const nliForPassage = result.nli_results.filter(r => r.passage_id === passageId);
+        const dominantLabel = nliForPassage.reduce((best, r) =>
+          r.probs.entailment > best.probs.entailment ? r : best, nliForPassage[0]
+        );
+        const nliLabel = dominantLabel?.label === 'entailment' ? 'supports'
+                       : dominantLabel?.label === 'contradiction' ? 'contradicts' : 'neutral';
+        const relevance = dominantLabel?.probs.entailment ?? 0.5;
+        return {
+          id: passageId,
+          type: 'evidence' as const,
+          label: passageId,
+          nli: nliLabel,
+          relevance,
+          url: '#',
+          x: COL_SOURCE_X,
+          y: getY(i, Math.min(uniquePassageIds.length, 7), 100, 700),
+        };
+      });
+
+      const realLinks = result.nli_results
+        .filter(r => realClaims.some(c => c.id === r.cluster_id || result.clusters.find(cl => cl.cluster_id === r.claim_id || cl.claim_ids.includes(r.claim_id))?.cluster_id === realClaims.find(rc => rc.id)?.id))
+        .slice(0, 20)
+        .map(r => {
+          const clusterForClaim = result.clusters.find(c => c.claim_ids.includes(r.claim_id));
+          return { source: clusterForClaim?.cluster_id ?? r.claim_id, target: r.passage_id };
+        })
+        .filter(l => realClaims.some(c => c.id === l.source) && realSources.some(s => s.id === l.target));
+
+      return { claims: realClaims, sources: realSources, links: realLinks };
+    }
+
     const positionedClaims = CLAIMS.map((c, i) => ({
       ...c,
       x: COL_CLAIM_X,
@@ -76,8 +130,8 @@ export default function EvidenceNetwork({ selectedModels: _selectedModels }: Evi
       y: getY(i, SOURCES.length, 100, 700)
     }));
 
-    return { claims: positionedClaims, sources: positionedSources };
-  }, []);
+    return { claims: positionedClaims, sources: positionedSources, links: LINKS };
+  }, [result]);
 
   // Generate smooth cubic bezier curve
   const createSmoothCurve = (x1: number, y1: number, x2: number, y2: number) => {
@@ -119,7 +173,7 @@ export default function EvidenceNetwork({ selectedModels: _selectedModels }: Evi
             </defs>
 
             {/* EDGES (Lines) */}
-            {LINKS.map((link, i) => {
+            {(layoutData.links ?? LINKS).map((link, i) => {
               const source = layoutData.claims.find(c => c.id === link.source);
               const target = layoutData.sources.find(s => s.id === link.target);
               if (!source || !target) return null;
@@ -186,7 +240,7 @@ export default function EvidenceNetwork({ selectedModels: _selectedModels }: Evi
             
             let isConnected = false;
             if (hasAnyFocus) {
-               isConnected = isFocus || LINKS.some(l => 
+               isConnected = isFocus || (layoutData.links ?? LINKS).some(l =>
                  (l.source === (hoveredNode || activeNode?.id) && l.target === node.id) ||
                  (l.target === (hoveredNode || activeNode?.id) && l.source === node.id)
                );

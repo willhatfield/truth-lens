@@ -12,6 +12,14 @@ const TRUST_COLORS: Record<string, string> = {
   Rejected: '#FF4757',
 };
 
+const MODEL_ID_MAP: Record<string, string> = {
+  openai_gpt4: 'GPT-4 (OpenAI)',
+  gemini_2_0: 'Gemini (Google)',
+  claude_sonnet_4: 'Claude (Anthropic)',
+  kimi: 'Kimi (Moonshot)',
+  llama_3_8b: 'Llama 3 (Meta)',
+};
+
 const MODEL_COLORS: Record<string, string> = {
   'GPT-4 (OpenAI)': '#10A37F',
   'Gemini (Google)': '#428F54',
@@ -30,7 +38,7 @@ const MOCK_TEXTS = [
 ];
 
 interface Cluster {
-  id: number;
+  id: number | string;
   position: [number, number, number];
   text: string;
   isOutlier: boolean;
@@ -38,7 +46,7 @@ interface Cluster {
 
 interface ClaimNode {
   id: string;
-  clusterId: number;
+  clusterId: number | string | null;
   model: string;
   position: [number, number, number];
   trustStatus: 'VerifiedSafe' | 'CautionUnverified' | 'Rejected';
@@ -313,7 +321,20 @@ export default function Constellation({ selectedModels, result }: ConstellationP
     return { clusterHubs, claimNodes };
   }, [result]);
 
-  const { nodes, clusters } = useMemo(() => generateGraphData(), []);
+  const { nodes, clusters } = useMemo(() => {
+    if (_realNodes) {
+      return {
+        clusters: _realNodes.clusterHubs,
+        nodes: _realNodes.claimNodes.map(n => ({
+          ...n,
+          model: MODEL_ID_MAP[n.model] ?? n.model,
+          confidence: n.trustStatus === 'VerifiedSafe' ? 85
+                    : n.trustStatus === 'CautionUnverified' ? 50 : 20,
+        })),
+      };
+    }
+    return generateGraphData();
+  }, [_realNodes]);
   const [activeNode, setActiveNode] = useState<ClaimNode | null>(null);
 
   const visibleNodes = nodes.filter(node => selectedModels.includes(node.model));

@@ -58,7 +58,7 @@ export default function LoadingPage() {
         setProgress(STAGE_MAP.MODEL_STARTED.progress);
       } else if (type === 'MODEL_DONE') {
         modelDoneCount.current += 1;
-        if (modelDoneCount.current >= 5) {
+        if (modelDoneCount.current >= 3) {
           setMessage(STAGE_MAP.MODEL_DONE_ALL.message);
           setProgress(STAGE_MAP.MODEL_DONE_ALL.progress);
         }
