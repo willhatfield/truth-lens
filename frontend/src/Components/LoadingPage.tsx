@@ -114,6 +114,35 @@ export default function LoadingPage() {
   const [message, setMessage] = useState("gathering information...");
   const [fatalError, setFatalError] = useState<string | null>(null);
   const modelDoneCount = useRef(0);
+  const startTime = useRef(Date.now());
+  const stageTarget = useRef(0);
+  const doneRef = useRef(false);
+
+  // Smooth time-based progress: fills 0→99% over ~80s using a quadratic ease-out
+  useEffect(() => {
+    if (!jobId) return;
+
+    const TOTAL_DURATION = 80_000; // 80 seconds to reach 99%
+
+    const timer = setInterval(() => {
+      if (doneRef.current) return;
+
+      setProgress(prev => {
+        const elapsed = Date.now() - startTime.current;
+        const t = Math.min(elapsed / TOTAL_DURATION, 1);
+        // Quadratic ease-out: starts fast, slows near the end
+        const timeProgress = Math.round(99 * (1 - Math.pow(1 - t, 2)));
+        // Use whichever is higher: time-based or stage-based, capped at 99
+        const target = Math.min(Math.max(timeProgress, stageTarget.current), 99);
+        if (prev >= target) return prev;
+        // Smooth step toward target
+        const step = Math.max(1, Math.ceil((target - prev) * 0.15));
+        return Math.min(prev + step, target);
+      });
+    }, 200);
+
+    return () => clearInterval(timer);
+  }, [jobId]);
 
   useEffect(() => {
     if (!jobId) {
@@ -145,20 +174,21 @@ export default function LoadingPage() {
 
       if (type === 'MODEL_STARTED') {
         setMessage(STAGE_MAP.MODEL_STARTED.message);
-        setProgress(STAGE_MAP.MODEL_STARTED.progress);
+        stageTarget.current = Math.max(stageTarget.current, STAGE_MAP.MODEL_STARTED.progress);
       } else if (type === 'MODEL_DONE') {
         modelDoneCount.current += 1;
         if (modelDoneCount.current >= 3) {
           setMessage(STAGE_MAP.MODEL_DONE_ALL.message);
-          setProgress(STAGE_MAP.MODEL_DONE_ALL.progress);
+          stageTarget.current = Math.max(stageTarget.current, STAGE_MAP.MODEL_DONE_ALL.progress);
         }
       } else if (type === 'STAGE_PROGRESS' && payload) {
         const stage = payload.stage as string;
         if (STAGE_MAP[stage]) {
           setMessage(STAGE_MAP[stage].message);
-          setProgress(STAGE_MAP[stage].progress);
+          stageTarget.current = Math.max(stageTarget.current, STAGE_MAP[stage].progress);
         }
       } else if (type === 'DONE') {
+        doneRef.current = true;
         setMessage(STAGE_MAP.DONE.message);
         setProgress(100);
         const raw = (payload as { result: unknown }).result;
@@ -166,12 +196,16 @@ export default function LoadingPage() {
         sessionStorage.setItem(`result_${jobId}`, JSON.stringify(result));
         setTimeout(() => navigate(`/arena?job=${jobId}`), 800);
       } else if (type === 'FATAL_ERROR') {
+        doneRef.current = true;
         const errMsg = payload ? (payload.message as string) ?? 'Analysis failed' : 'Analysis failed';
         setFatalError(errMsg);
       }
     };
 
-    ws.onerror = () => setFatalError('Connection to server failed.');
+    ws.onerror = () => {
+      doneRef.current = true;
+      setFatalError('Connection to server failed.');
+    };
 
     return () => ws.close();
   }, [jobId, navigate]);
