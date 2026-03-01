@@ -983,7 +983,11 @@ def generate_llama(payload: dict) -> dict:
 
 _kimi_image = (
     modal.Image.debian_slim(python_version="3.11")
-    .pip_install("openai>=1.0.0")
+    .pip_install("openai>=1.0.0", "pydantic==2.10.6")
+    .add_local_python_source(
+        "schemas", "batch_utils", "fallback_utils",
+        "id_utils", "claim_extraction", "scoring", "auth_utils",
+    )
 )
 
 
