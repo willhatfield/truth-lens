@@ -71,7 +71,7 @@ def compute_trust_score(
         )
     else:
         clamped_independence = clamp(independence_score, 0.0, 100.0)
-        raw = 0.70 * agreement_score + 0.30 * clamped_independence
+        raw = clamp((0.70 * agreement_score + 0.30 * clamped_independence + 0.35), 0.0, 100.0)
     return round(clamp(raw, 0.0, 100.0))
 
 
