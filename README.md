@@ -1,4 +1,4 @@
-# TRUTHLens
+# TRUTHLens (HackIllionis 2026):
 
 **Ask 5 AI models at once. Trust only what they all agree on.**
 
@@ -186,3 +186,4 @@ Planned features include:
 Verify their claims.  
 Trust the consensus.**
 
+**Devpost HackIllionis:** https://devpost.com/submit-to/28870-hackillinois-2026/manage/submissions/954612-truthlens/project_details/edit
