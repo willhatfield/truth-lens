@@ -225,6 +225,7 @@ def _extract_from_single_response(
     memory=16384,
     timeout=600,
     volumes={VOLUME_MOUNT: model_volume},
+    secrets=[modal.Secret.from_name("huggingface-secret")],
 )
 def extract_claims(payload: dict) -> dict:
     """Decompose model responses into atomic claims using Llama."""
@@ -627,6 +628,7 @@ def _fallback_rerank_all(req) -> list:
     memory=24576,
     timeout=900,
     volumes={VOLUME_MOUNT: model_volume},
+    secrets=[modal.Secret.from_name("huggingface-secret")],
 )
 def nli_verify_batch(payload: dict) -> dict:
     """Run NLI on claim-passage pairs using DeBERTa-v3-large."""
@@ -645,9 +647,9 @@ def nli_verify_batch(payload: dict) -> dict:
         from transformers import AutoModelForSequenceClassification
         import torch
 
-        tokenizer = AutoTokenizer.from_pretrained(req.nli_model)
+        tokenizer = AutoTokenizer.from_pretrained(req.nli_model, token=os.environ.get("HF_TOKEN"))
         model = AutoModelForSequenceClassification.from_pretrained(
-            req.nli_model,
+            req.nli_model, token=os.environ.get("HF_TOKEN"),
         )
         model.eval()
 
@@ -938,7 +940,7 @@ def _score_single_cluster(
     memory=16384,
     timeout=600,
     volumes={VOLUME_MOUNT: model_volume},
-    secrets=[modal.Secret.from_name("truthlens-api-key")],
+    secrets=[modal.Secret.from_name("truthlens-api-key"), modal.Secret.from_name("huggingface-secret")],
 )
 class LlamaGenerator:
     @modal.enter()
@@ -950,6 +952,7 @@ class LlamaGenerator:
             model=LLAMA_MODEL_NAME,
             torch_dtype=torch.bfloat16,
             device_map="auto",
+            token=os.environ.get("HF_TOKEN"),
         )
 
     @modal.method()
@@ -965,7 +968,7 @@ class LlamaGenerator:
     memory=16384,
     timeout=600,
     volumes={VOLUME_MOUNT: model_volume},
-    secrets=[modal.Secret.from_name("truthlens-api-key")],
+    secrets=[modal.Secret.from_name("truthlens-api-key"), modal.Secret.from_name("huggingface-secret")],
     min_containers=2,
 )
 def generate_llama(payload: dict) -> dict:
@@ -976,6 +979,7 @@ def generate_llama(payload: dict) -> dict:
         model=LLAMA_MODEL_NAME,
         torch_dtype=torch.bfloat16,
         device_map="auto",
+        token=os.environ.get("HF_TOKEN"),
     )
     prompt = payload.get("prompt", "")
     output = pipe(prompt, max_new_tokens=512, do_sample=True, temperature=0.7)

@@ -1,6 +1,7 @@
 import asyncio
 from typing import Dict, List
 from fastapi import WebSocket
+from starlette.websockets import WebSocketDisconnect
 
 TERMINAL_EVENT_TYPES = ("DONE", "FATAL_ERROR")
 
@@ -35,9 +36,11 @@ class WSManager:
     async def stream_to_ws(self, analysis_id: str, ws: WebSocket) -> None:
         await ws.accept()
 
-        # Replay anything that already happened
         for event in self.history.get(analysis_id, []):
-            await ws.send_json(event)
+            try:
+                await ws.send_json(event)
+            except (WebSocketDisconnect, RuntimeError):
+                return
             if event.get("type") in TERMINAL_EVENT_TYPES:
                 await ws.close()
                 return
@@ -49,5 +52,10 @@ class WSManager:
                 await ws.send_json(event)
                 if event.get("type") in TERMINAL_EVENT_TYPES:
                     break
+        except (WebSocketDisconnect, RuntimeError):
+            return
         finally:
-            await ws.close()
+            try:
+                await ws.close()
+            except Exception:
+                pass

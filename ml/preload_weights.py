@@ -8,6 +8,7 @@ so that cold-start times are reduced for GPU functions.
 """
 
 import modal
+import os
 
 # -- Modal App + shared volume (mirrors modal_app.py) ----------------------
 
@@ -81,8 +82,8 @@ def download_nli_model() -> str:
     from transformers import AutoModelForSequenceClassification
 
     print(f"Downloading NLI model: {NLI_MODEL_NAME}")
-    AutoTokenizer.from_pretrained(NLI_MODEL_NAME)
-    AutoModelForSequenceClassification.from_pretrained(NLI_MODEL_NAME)
+    AutoTokenizer.from_pretrained(NLI_MODEL_NAME, token=os.environ.get("HF_TOKEN"))
+    AutoModelForSequenceClassification.from_pretrained(NLI_MODEL_NAME, token=os.environ.get("HF_TOKEN"))
     print(f"Done: {NLI_MODEL_NAME}")
     return NLI_MODEL_NAME
 
@@ -92,8 +93,8 @@ def download_llama_model() -> str:
     from transformers import AutoTokenizer, AutoModelForCausalLM
 
     print(f"Downloading Llama model: {LLAMA_MODEL_NAME}")
-    AutoTokenizer.from_pretrained(LLAMA_MODEL_NAME)
-    AutoModelForCausalLM.from_pretrained(LLAMA_MODEL_NAME)
+    AutoTokenizer.from_pretrained(LLAMA_MODEL_NAME, token=os.environ.get("HF_TOKEN"))
+    AutoModelForCausalLM.from_pretrained(LLAMA_MODEL_NAME, token=os.environ.get("HF_TOKEN"))
     print(f"Done: {LLAMA_MODEL_NAME}")
     return LLAMA_MODEL_NAME
 
@@ -115,6 +116,7 @@ DOWNLOAD_FUNCTIONS = {
     volumes={VOLUME_MOUNT: model_volume},
     timeout=1800,
     memory=32768,
+    secrets=[modal.Secret.from_name("huggingface-secret")],
 )
 def preload_all_weights() -> dict:
     """Download all 4 model weights into the shared volume.

@@ -426,6 +426,8 @@ def _run_score_stage(analysis_id, claims, clusters,
         cluster_input.append({
             "cluster_id": cl["cluster_id"],
             "claim_ids": cl["claim_ids"],
+            "representative_claim_id": cl["representative_claim_id"],
+            "representative_text": cl["representative_text"],
         })
 
     try:
