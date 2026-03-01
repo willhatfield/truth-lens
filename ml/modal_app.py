@@ -966,6 +966,7 @@ class LlamaGenerator:
     timeout=600,
     volumes={VOLUME_MOUNT: model_volume},
     secrets=[modal.Secret.from_name("truthlens-api-key")],
+    min_containers=2,
 )
 def generate_llama(payload: dict) -> dict:
     from transformers import pipeline
@@ -994,6 +995,7 @@ _kimi_image = (
 @app.function(
     image=_kimi_image,
     secrets=[modal.Secret.from_name("truthlens-api-key")],
+    min_containers=2,
 )
 def generate_kimi(payload: dict) -> dict:
     from openai import OpenAI
