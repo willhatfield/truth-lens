@@ -927,6 +927,83 @@ def _score_single_cluster(
     )
 
 
+# -- LLM Generation Functions ---------------------------------------------
+
+
+@app.cls(
+    image=gpu_image,
+    gpu="A10G",
+    memory=16384,
+    timeout=600,
+    volumes={VOLUME_MOUNT: model_volume},
+    secrets=[modal.Secret.from_name("truthlens-api-key")],
+)
+class LlamaGenerator:
+    @modal.enter()
+    def load(self):
+        from transformers import pipeline
+        import torch
+        self.pipe = pipeline(
+            "text-generation",
+            model=LLAMA_MODEL_NAME,
+            torch_dtype=torch.bfloat16,
+            device_map="auto",
+        )
+
+    @modal.method()
+    def generate(self, payload: dict) -> dict:
+        prompt = payload.get("prompt", "")
+        output = self.pipe(prompt, max_new_tokens=512, do_sample=True, temperature=0.7)
+        return {"response_text": output[0]["generated_text"][len(prompt):]}
+
+
+@app.function(
+    image=gpu_image,
+    gpu="A10G",
+    memory=16384,
+    timeout=600,
+    volumes={VOLUME_MOUNT: model_volume},
+    secrets=[modal.Secret.from_name("truthlens-api-key")],
+)
+def generate_llama(payload: dict) -> dict:
+    from transformers import pipeline
+    import torch
+    pipe = pipeline(
+        "text-generation",
+        model=LLAMA_MODEL_NAME,
+        torch_dtype=torch.bfloat16,
+        device_map="auto",
+    )
+    prompt = payload.get("prompt", "")
+    output = pipe(prompt, max_new_tokens=512, do_sample=True, temperature=0.7)
+    return {"response_text": output[0]["generated_text"][len(prompt):]}
+
+
+_kimi_image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .pip_install("openai>=1.0.0")
+)
+
+
+@app.function(
+    image=_kimi_image,
+    secrets=[modal.Secret.from_name("truthlens-api-key")],
+)
+def generate_kimi(payload: dict) -> dict:
+    from openai import OpenAI
+    import os
+    api_key = os.environ.get("KIMI_API_KEY")
+    if not api_key:
+        raise RuntimeError("KIMI_API_KEY not in truthlens-api-key secret")
+    client = OpenAI(api_key=api_key, base_url="https://api.moonshot.cn/v1")
+    prompt = payload.get("prompt", "")
+    response = client.chat.completions.create(
+        model="moonshot-v1-8k",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return {"response_text": response.choices[0].message.content}
+
+
 # -- HTTP Endpoints for Vercel integration ---------------------------------
 
 @app.function(
