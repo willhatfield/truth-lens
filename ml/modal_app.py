@@ -936,11 +936,12 @@ def _score_single_cluster(
 
 @app.cls(
     image=gpu_image,
-    gpu="A10G",
+    gpu="A100",
     memory=16384,
     timeout=600,
     volumes={VOLUME_MOUNT: model_volume},
     secrets=[modal.Secret.from_name("truthlens-api-key"), modal.Secret.from_name("huggingface-secret")],
+    min_containers=2,
 )
 class LlamaGenerator:
     @modal.enter()
@@ -964,12 +965,11 @@ class LlamaGenerator:
 
 @app.function(
     image=gpu_image,
-    gpu="A10G",
+    gpu="A100",
     memory=16384,
     timeout=600,
     volumes={VOLUME_MOUNT: model_volume},
     secrets=[modal.Secret.from_name("truthlens-api-key"), modal.Secret.from_name("huggingface-secret")],
-    min_containers=2,
 )
 def generate_llama(payload: dict) -> dict:
     from transformers import pipeline
@@ -988,7 +988,7 @@ def generate_llama(payload: dict) -> dict:
 
 _kimi_image = (
     modal.Image.debian_slim(python_version="3.11")
-    .pip_install("openai>=1.0.0", "pydantic==2.10.6")
+    .pip_install("openai>=1.0.0", "pydantic==2.10.6", "fastapi[standard]>=0.115.0")
     .add_local_python_source(
         "schemas", "batch_utils", "fallback_utils",
         "id_utils", "claim_extraction", "scoring", "auth_utils",
