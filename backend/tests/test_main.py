@@ -17,34 +17,34 @@ def test_health_check():
     assert data["status"] == "ok"
 
 
-@patch("app.main.run_pipeline")
-def test_analyze_returns_analysis_id(mock_run):
-    """POST /analyze returns analysis_id and stream URLs."""
+@patch("app.main.start_pipeline", new_callable=AsyncMock)
+def test_analyze_returns_analysis_id(mock_start):
+    """POST /analyze returns analysis_id and status."""
+    mock_start.return_value = {"analysis_id": "a_test123", "status": "done"}
     resp = client.post("/analyze", json={"prompt": "Is the sky blue?"})
     assert resp.status_code == 200
     data = resp.json()
     assert "analysis_id" in data
     assert data["analysis_id"].startswith("a_")
-    assert "ws_url" in data
-    assert "sse_url" in data
+    assert data["schema_version"] == "1.0"
 
 
-@patch("app.main.run_pipeline")
-def test_analyze_requires_prompt(mock_run):
+@patch("app.main.start_pipeline", new_callable=AsyncMock)
+def test_analyze_requires_prompt(mock_start):
     """POST /analyze without prompt returns 422."""
     resp = client.post("/analyze", json={})
     assert resp.status_code == 422
 
-# Ghost test
-# @patch("app.main.get_analysis_status", new_callable=AsyncMock)
-# def test_get_analysis_returns_status(mock_status):
-#     """GET /analysis/{id} returns status from Modal."""
-#     mock_status.return_value = {
-#         "status": "running",
-#         "stage": "extract_claims",
-#         "stages_completed": ["llm_calls"],
-#     }
-#     resp = client.get("/analysis/a_test123")
-#     assert resp.status_code == 200
-#     data = resp.json()
-#     assert data["status"] == "running"
+
+@patch("app.main.get_analysis_status", new_callable=AsyncMock)
+def test_get_analysis_returns_status(mock_status):
+    """GET /analysis/{id} returns status from Modal."""
+    mock_status.return_value = {
+        "status": "running",
+        "stage": "extract_claims",
+        "stages_completed": ["llm_calls"],
+    }
+    resp = client.get("/analysis/a_test123")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "running"
