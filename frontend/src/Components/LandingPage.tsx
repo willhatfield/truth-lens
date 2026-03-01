@@ -208,7 +208,7 @@ export default function LandingPage() {
 
       {/* Background GIF Layer */}
       <div 
-        className="absolute inset-0 z-0 opacity-[0.025] pointer-events-none"
+        className="absolute inset-0 z-0 opacity-[0.05] pointer-events-none"
         style={{ backgroundImage: "url('/Gridgif-ezgif.com-speed.gif')", backgroundSize: 'cover', backgroundPosition: 'center' }}
       />
 
