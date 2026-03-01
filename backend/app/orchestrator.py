@@ -137,6 +137,7 @@ async def run_pipeline(analysis_id: str, prompt: str, publish: PublishFn) -> Non
             ml_result = await run_ml_pipeline(
                 analysis_id=analysis_id,
                 model_outputs=models,
+                prompt=prompt,
                 publish=publish,
             )
             ml_warnings = ml_result.get("warnings", []) or []
@@ -163,11 +164,13 @@ async def run_pipeline(analysis_id: str, prompt: str, publish: PublishFn) -> Non
                 type="DONE",
                 payload={
                     "result": {
+                        **{k: v for k, v in ml_result.items()
+                           if k not in ("warnings", "prompt", "schema_version",
+                                        "analysis_id", "models")},
                         "schema_version": SCHEMA_VERSION,
                         "analysis_id": analysis_id,
                         "prompt": prompt,
                         "models": models,
-                        **{k: v for k, v in ml_result.items() if k != "warnings"},
                         "warnings": warnings,
                     }
                 },

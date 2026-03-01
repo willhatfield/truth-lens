@@ -186,7 +186,7 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
         <div className="mb-6">
           <span className="text-[#90A2B3] text-[10px] font-bold tracking-[0.2em] uppercase mb-1.5 block">Original Query</span>
           <h1 className="text-[#EBF0FF] text-[22px] font-bold leading-tight">
-            "{result ? result.prompt : 'Is intermittent fasting actually effective for fixing insulin resistance, and does it change your DNA?'}"
+            "{result?.prompt || 'Is intermittent fasting actually effective for fixing insulin resistance, and does it change your DNA?'}"
           </h1>
         </div>
 

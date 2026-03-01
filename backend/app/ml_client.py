@@ -29,6 +29,7 @@ def _ml_auth_headers() -> dict[str, str]:
 async def run_ml_pipeline(
     analysis_id: str,
     model_outputs: list[dict[str, str]],
+    prompt: str = "",
     passages_by_claim: dict | None = None,
     publish: PublishFn | None = None,
 ) -> dict[str, Any]:
@@ -56,7 +57,7 @@ async def run_ml_pipeline(
             headers=headers,
             json={
                 "analysis_id": analysis_id,
-                "prompt": "",
+                "prompt": prompt,
                 "model_outputs": filtered_responses,
             },
         )
