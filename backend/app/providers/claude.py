@@ -26,8 +26,8 @@ def _candidate_models() -> list[str]:
     if configured:
         return [configured]
     return [
-        "claude-sonnet-4-5",
-        "claude-3-7-sonnet-latest",
+        "claude-sonnet-4-6",          # current production model
+        "claude-3-5-sonnet-20241022",  # explicit version (widely available)
         "claude-3-5-sonnet-latest",
     ]
 
