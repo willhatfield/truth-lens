@@ -39,6 +39,174 @@ interface ClaimNode {
   confidence: number;
 }
 
+// --- GLOBE PROJECTION ---
+const HOVER_RADIUS = 9.0;   // nodes float above the 4.5 globe
+const CLAIM_SPREAD = 1.5;   // max tangent offset for claims within a cluster
+
+/** Distribute N points evenly across a sphere using the golden spiral. */
+function fibonacciSphere(n: number, radius: number): [number, number, number][] {
+  const points: [number, number, number][] = [];
+  const goldenRatio = (1 + Math.sqrt(5)) / 2;
+  for (let i = 0; i < n; i++) {
+    const theta = (2 * Math.PI * i) / goldenRatio;
+    const phi = Math.acos(1 - (2 * (i + 0.5)) / n);
+    points.push([
+      radius * Math.sin(phi) * Math.cos(theta),
+      radius * Math.cos(phi),
+      radius * Math.sin(phi) * Math.sin(theta),
+    ]);
+  }
+  return points;
+}
+
+/**
+ * Project UMAP 3D coords onto a globe surface.
+ * Clusters are spread via Fibonacci sphere; claims within a cluster
+ * are offset on the tangent plane at each cluster's sphere point.
+ */
+function projectToGlobe(
+  coords3d: Record<string, [number, number, number]>,
+  clusters: { cluster_id: number | string; claim_ids: string[] }[],
+  hoverRadius: number,
+  claimSpread: number,
+): Record<string, [number, number, number]> {
+  const ids = Object.keys(coords3d);
+  if (ids.length === 0) return {};
+
+  // 1. Center all UMAP coords (subtract global mean)
+  const mean: [number, number, number] = [0, 0, 0];
+  for (const id of ids) {
+    mean[0] += coords3d[id][0];
+    mean[1] += coords3d[id][1];
+    mean[2] += coords3d[id][2];
+  }
+  mean[0] /= ids.length;
+  mean[1] /= ids.length;
+  mean[2] /= ids.length;
+
+  const centered: Record<string, [number, number, number]> = {};
+  for (const id of ids) {
+    centered[id] = [
+      coords3d[id][0] - mean[0],
+      coords3d[id][1] - mean[1],
+      coords3d[id][2] - mean[2],
+    ];
+  }
+
+  // 2. Compute each cluster's centroid in centered UMAP space
+  const clusterCentroids: { clusterId: number | string; centroid: [number, number, number]; claimIds: string[] }[] = [];
+  const assignedIds = new Set<string>();
+
+  for (const cluster of clusters) {
+    const memberCoords = cluster.claim_ids
+      .map(id => centered[id])
+      .filter(Boolean);
+    if (memberCoords.length === 0) continue;
+
+    const centroid: [number, number, number] = [
+      memberCoords.reduce((a, c) => a + c[0], 0) / memberCoords.length,
+      memberCoords.reduce((a, c) => a + c[1], 0) / memberCoords.length,
+      memberCoords.reduce((a, c) => a + c[2], 0) / memberCoords.length,
+    ];
+    clusterCentroids.push({ clusterId: cluster.cluster_id, centroid, claimIds: cluster.claim_ids });
+    cluster.claim_ids.forEach(id => assignedIds.add(id));
+  }
+
+  // 3. Sort clusters by angular position to preserve rough UMAP spatial relationships
+  clusterCentroids.sort((a, b) => {
+    const angleA = Math.atan2(a.centroid[2], a.centroid[0]);
+    const angleB = Math.atan2(b.centroid[2], b.centroid[0]);
+    return angleA - angleB;
+  });
+
+  // 4. Assign each cluster centroid to a Fibonacci sphere point
+  const fibPoints = fibonacciSphere(Math.max(clusterCentroids.length, 1), hoverRadius);
+  const projected: Record<string, [number, number, number]> = {};
+
+  for (let ci = 0; ci < clusterCentroids.length; ci++) {
+    const { claimIds, centroid } = clusterCentroids[ci];
+    const fibPt = fibPoints[ci];
+
+    // Normal direction at this sphere point
+    const mag = Math.sqrt(fibPt[0] ** 2 + fibPt[1] ** 2 + fibPt[2] ** 2);
+    const normal: [number, number, number] = mag > 0
+      ? [fibPt[0] / mag, fibPt[1] / mag, fibPt[2] / mag]
+      : [0, 1, 0];
+
+    // Build tangent plane basis vectors
+    const up: [number, number, number] = Math.abs(normal[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+    // tangent1 = normalize(up × normal)
+    const t1: [number, number, number] = [
+      up[1] * normal[2] - up[2] * normal[1],
+      up[2] * normal[0] - up[0] * normal[2],
+      up[0] * normal[1] - up[1] * normal[0],
+    ];
+    const t1Mag = Math.sqrt(t1[0] ** 2 + t1[1] ** 2 + t1[2] ** 2);
+    if (t1Mag > 0) { t1[0] /= t1Mag; t1[1] /= t1Mag; t1[2] /= t1Mag; }
+    // tangent2 = normal × tangent1
+    const t2: [number, number, number] = [
+      normal[1] * t1[2] - normal[2] * t1[1],
+      normal[2] * t1[0] - normal[0] * t1[2],
+      normal[0] * t1[1] - normal[1] * t1[0],
+    ];
+
+    // 5. Project each claim's UMAP offset onto the tangent plane
+    if (claimIds.length === 1) {
+      // Single claim → place exactly at Fibonacci point
+      if (centered[claimIds[0]]) projected[claimIds[0]] = fibPt;
+    } else {
+      // Compute tangent-plane offsets and find max magnitude for normalization
+      let maxOff = 0;
+      const offsets: [number, number][] = [];
+      for (const id of claimIds) {
+        if (!centered[id]) { offsets.push([0, 0]); continue; }
+        const dx = centered[id][0] - centroid[0];
+        const dy = centered[id][1] - centroid[1];
+        const dz = centered[id][2] - centroid[2];
+        const u = dx * t1[0] + dy * t1[1] + dz * t1[2];
+        const v = dx * t2[0] + dy * t2[1] + dz * t2[2];
+        offsets.push([u, v]);
+        maxOff = Math.max(maxOff, Math.sqrt(u * u + v * v));
+      }
+
+      for (let oi = 0; oi < claimIds.length; oi++) {
+        const id = claimIds[oi];
+        if (!centered[id]) continue;
+        let [u, v] = offsets[oi];
+        if (maxOff > 0) {
+          u = (u / maxOff) * claimSpread;
+          v = (v / maxOff) * claimSpread;
+        }
+        // Offset from Fibonacci point along tangent plane, then re-normalize to sphere
+        const px = fibPt[0] + u * t1[0] + v * t2[0];
+        const py = fibPt[1] + u * t1[1] + v * t2[1];
+        const pz = fibPt[2] + u * t1[2] + v * t2[2];
+        const pMag = Math.sqrt(px * px + py * py + pz * pz);
+        if (pMag > 0) {
+          projected[id] = [(px / pMag) * hoverRadius, (py / pMag) * hoverRadius, (pz / pMag) * hoverRadius];
+        } else {
+          projected[id] = [0, hoverRadius, 0];
+        }
+      }
+    }
+  }
+
+  // 6. Orphan claims: normalize raw direction to hover radius
+  for (const id of ids) {
+    if (!projected[id]) {
+      const c = centered[id];
+      const cMag = Math.sqrt(c[0] ** 2 + c[1] ** 2 + c[2] ** 2);
+      if (cMag > 0) {
+        projected[id] = [(c[0] / cMag) * hoverRadius, (c[1] / cMag) * hoverRadius, (c[2] / cMag) * hoverRadius];
+      } else {
+        projected[id] = [0, hoverRadius, 0];
+      }
+    }
+  }
+
+  return projected;
+}
+
 // --- PROPORTIONATE MOCK DATA ---
 const generateGraphData = () => {
   const nodes: ClaimNode[] = [];
@@ -258,9 +426,12 @@ export default function Constellation({ selectedModels, result }: ConstellationP
     if (!result) return null;
     const { clusters, claims, coords3d, cluster_scores } = result;
 
+    // Project UMAP coords onto globe surface
+    const globeCoords = projectToGlobe(coords3d, clusters, HOVER_RADIUS, CLAIM_SPREAD);
+
     const clusterHubs = clusters.map(cluster => {
       const memberCoords = cluster.claim_ids
-        .map(id => coords3d[id])
+        .map(id => globeCoords[id])
         .filter(Boolean) as [number, number, number][];
       const centroid: [number, number, number] = memberCoords.length > 0
         ? [
@@ -284,7 +455,7 @@ export default function Constellation({ selectedModels, result }: ConstellationP
     });
 
     const claimNodes = claims.map(claim => {
-      const pos = coords3d[claim.claim_id] ?? [0, 0, 0] as [number, number, number];
+      const pos = globeCoords[claim.claim_id] ?? [0, 0, 0] as [number, number, number];
       const clusterForClaim = clusters.find(c => c.claim_ids.includes(claim.claim_id));
       const score = clusterForClaim
         ? cluster_scores.find(s => s.cluster_id === clusterForClaim.cluster_id)
