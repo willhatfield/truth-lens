@@ -40,8 +40,19 @@ interface ClaimNode {
 }
 
 // --- GLOBE PROJECTION ---
-const HOVER_RADIUS = 9.0;   // nodes float above the 4.5 globe
+const MIN_RADIUS = 6.0;     // closest to globe (high trust)
+const MAX_RADIUS = 12.0;    // furthest from globe (low trust)
 const CLAIM_SPREAD = 1.5;   // max tangent offset for claims within a cluster
+const RADIUS_JITTER = 0.8;  // random radial offset to break perfect shells
+
+/** Deterministic hash for a string → [0,1). Stable across renders. */
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return (((h >>> 0) % 10000) / 10000);
+}
 
 /** Distribute N points evenly across a sphere using the golden spiral. */
 function fibonacciSphere(n: number, radius: number): [number, number, number][] {
@@ -67,8 +78,10 @@ function fibonacciSphere(n: number, radius: number): [number, number, number][] 
 function projectToGlobe(
   coords3d: Record<string, [number, number, number]>,
   clusters: { cluster_id: number | string; claim_ids: string[] }[],
-  hoverRadius: number,
+  minRadius: number,
+  maxRadius: number,
   claimSpread: number,
+  claimAffiliation: Record<string, number>,  // claim_id → 0-1 (1 = high trust, closer)
 ): Record<string, [number, number, number]> {
   const ids = Object.keys(coords3d);
   if (ids.length === 0) return {};
@@ -119,19 +132,25 @@ function projectToGlobe(
     return angleA - angleB;
   });
 
-  // 4. Assign each cluster centroid to a Fibonacci sphere point
-  const fibPoints = fibonacciSphere(Math.max(clusterCentroids.length, 1), hoverRadius);
+  // 4. Assign each cluster centroid to a Fibonacci sphere point (unit directions)
+  const fibPoints = fibonacciSphere(Math.max(clusterCentroids.length, 1), 1.0); // unit sphere
   const projected: Record<string, [number, number, number]> = {};
+
+  /** Compute per-claim radius: high affiliation → closer to globe, plus jitter. */
+  const radiusFor = (id: string): number => {
+    const aff = claimAffiliation[id] ?? 0.5;
+    // Lerp: affiliation 1 → minRadius, affiliation 0 → maxRadius
+    const base = maxRadius - aff * (maxRadius - minRadius);
+    // Deterministic jitter so same-score claims don't form a perfect shell
+    const jitter = (hashStr(id) - 0.5) * 2 * RADIUS_JITTER;
+    return Math.max(minRadius, base + jitter);
+  };
 
   for (let ci = 0; ci < clusterCentroids.length; ci++) {
     const { claimIds, centroid } = clusterCentroids[ci];
-    const fibPt = fibPoints[ci];
+    const dir = fibPoints[ci]; // unit direction
 
-    // Normal direction at this sphere point
-    const mag = Math.sqrt(fibPt[0] ** 2 + fibPt[1] ** 2 + fibPt[2] ** 2);
-    const normal: [number, number, number] = mag > 0
-      ? [fibPt[0] / mag, fibPt[1] / mag, fibPt[2] / mag]
-      : [0, 1, 0];
+    const normal: [number, number, number] = [dir[0], dir[1], dir[2]];
 
     // Build tangent plane basis vectors
     const up: [number, number, number] = Math.abs(normal[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
@@ -152,8 +171,12 @@ function projectToGlobe(
 
     // 5. Project each claim's UMAP offset onto the tangent plane
     if (claimIds.length === 1) {
-      // Single claim → place exactly at Fibonacci point
-      if (centered[claimIds[0]]) projected[claimIds[0]] = fibPt;
+      // Single claim → place at Fibonacci direction, scaled by its own radius
+      const id = claimIds[0];
+      if (centered[id]) {
+        const r = radiusFor(id);
+        projected[id] = [normal[0] * r, normal[1] * r, normal[2] * r];
+      }
     } else {
       // Compute tangent-plane offsets and find max magnitude for normalization
       let maxOff = 0;
@@ -177,29 +200,32 @@ function projectToGlobe(
           u = (u / maxOff) * claimSpread;
           v = (v / maxOff) * claimSpread;
         }
-        // Offset from Fibonacci point along tangent plane, then re-normalize to sphere
-        const px = fibPt[0] + u * t1[0] + v * t2[0];
-        const py = fibPt[1] + u * t1[1] + v * t2[1];
-        const pz = fibPt[2] + u * t1[2] + v * t2[2];
+        // Offset direction from Fibonacci point along tangent plane
+        const px = normal[0] + u * t1[0] + v * t2[0];
+        const py = normal[1] + u * t1[1] + v * t2[1];
+        const pz = normal[2] + u * t1[2] + v * t2[2];
         const pMag = Math.sqrt(px * px + py * py + pz * pz);
+        // Scale to per-claim radius (affiliation-based + jitter)
+        const r = radiusFor(id);
         if (pMag > 0) {
-          projected[id] = [(px / pMag) * hoverRadius, (py / pMag) * hoverRadius, (pz / pMag) * hoverRadius];
+          projected[id] = [(px / pMag) * r, (py / pMag) * r, (pz / pMag) * r];
         } else {
-          projected[id] = [0, hoverRadius, 0];
+          projected[id] = [0, r, 0];
         }
       }
     }
   }
 
-  // 6. Orphan claims: normalize raw direction to hover radius
+  // 6. Orphan claims: normalize raw direction, use per-claim radius
   for (const id of ids) {
     if (!projected[id]) {
       const c = centered[id];
       const cMag = Math.sqrt(c[0] ** 2 + c[1] ** 2 + c[2] ** 2);
+      const r = radiusFor(id);
       if (cMag > 0) {
-        projected[id] = [(c[0] / cMag) * hoverRadius, (c[1] / cMag) * hoverRadius, (c[2] / cMag) * hoverRadius];
+        projected[id] = [(c[0] / cMag) * r, (c[1] / cMag) * r, (c[2] / cMag) * r];
       } else {
-        projected[id] = [0, hoverRadius, 0];
+        projected[id] = [0, r, 0];
       }
     }
   }
@@ -426,8 +452,18 @@ export default function Constellation({ selectedModels, result }: ConstellationP
     if (!result) return null;
     const { clusters, claims, coords3d, cluster_scores } = result;
 
+    // Build per-claim affiliation map from cluster trust_scores
+    const claimAffiliation: Record<string, number> = {};
+    for (const cluster of clusters) {
+      const score = cluster_scores.find(s => s.cluster_id === cluster.cluster_id);
+      const trust = score?.trust_score ?? 0.5;
+      for (const id of cluster.claim_ids) {
+        claimAffiliation[id] = trust;
+      }
+    }
+
     // Project UMAP coords onto globe surface
-    const globeCoords = projectToGlobe(coords3d, clusters, HOVER_RADIUS, CLAIM_SPREAD);
+    const globeCoords = projectToGlobe(coords3d, clusters, MIN_RADIUS, MAX_RADIUS, CLAIM_SPREAD, claimAffiliation);
 
     const clusterHubs = clusters.map(cluster => {
       const memberCoords = cluster.claim_ids
