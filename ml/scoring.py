@@ -3,6 +3,15 @@
 TOTAL_MODELS = 5  # Number of LLM providers in the arena
 
 
+def check_has_evidence(evidence_passage_id: str) -> bool:
+    """Return True if the passage ID indicates real evidence (not stub)."""
+    if not evidence_passage_id:
+        return False
+    if evidence_passage_id.startswith("p_default_"):
+        return False
+    return True
+
+
 def clamp(value: float, min_val: float, max_val: float) -> float:
     """Clamp value to [min_val, max_val] range."""
     if value < min_val:
@@ -43,17 +52,26 @@ def compute_trust_score(
     verification_score: float,
     independence_score: float,
     consistency_score: float,
+    has_evidence: bool = False,
 ) -> int:
-    """trust_score = round(0.35*agreement + 0.35*clamp(verification,0,100) + 0.15*clamp(independence,0,100) + 0.15*clamp(consistency,0,100))."""
-    clamped_verification = clamp(verification_score, 0.0, 100.0)
-    clamped_independence = clamp(independence_score, 0.0, 100.0)
-    clamped_consistency = clamp(consistency_score, 0.0, 100.0)
-    raw = (
-        0.35 * agreement_score
-        + 0.35 * clamped_verification
-        + 0.15 * clamped_independence
-        + 0.15 * clamped_consistency
-    )
+    """Compute weighted trust score.
+
+    With evidence:  0.35*agreement + 0.35*verification + 0.15*independence + 0.15*consistency
+    No evidence:    0.70*agreement + 0.30*independence  (verification/consistency ignored)
+    """
+    if has_evidence:
+        clamped_verification = clamp(verification_score, 0.0, 100.0)
+        clamped_independence = clamp(independence_score, 0.0, 100.0)
+        clamped_consistency = clamp(consistency_score, 0.0, 100.0)
+        raw = (
+            0.35 * agreement_score
+            + 0.35 * clamped_verification
+            + 0.15 * clamped_independence
+            + 0.15 * clamped_consistency
+        )
+    else:
+        clamped_independence = clamp(independence_score, 0.0, 100.0)
+        raw = clamp((0.70 * agreement_score + 0.30 * clamped_independence + 0.35), 0.0, 100.0)
     return round(clamp(raw, 0.0, 100.0))
 
 
