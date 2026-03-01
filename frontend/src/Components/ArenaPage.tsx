@@ -279,7 +279,7 @@ export default function ArenaPage() {
             case "Constellation": return <Constellation selectedModels={selectedModels} result={result} />;
             case "Heatmap": return <Heatmap selectedModels={selectedModels} result={result} />;
             case "Knowledge Deck": return <KnowledgeDeck selectedModels={selectedModels} result={result} />;
-            case "Pipeline": return <Pipeline selectedModels={selectedModels} />;
+            case "Pipeline": return <Pipeline selectedModels={selectedModels} pipelineData={result?.pipelineFlow} />;
             case "Evidence Network": return <EvidenceNetwork selectedModels={selectedModels} result={result} />;
             default: return <p className="text-[#5E6E81] font-['Inter'] animate-pulse text-lg tracking-widest uppercase">{activeVisualization} View</p>;
           }

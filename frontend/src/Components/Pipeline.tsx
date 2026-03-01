@@ -5,9 +5,11 @@ import {
   CheckCircle2, Trash2 
 } from 'lucide-react';
 import React from 'react';
+import type { ModelFlowInfo } from '../types';
 
 interface PipelineProps {
   selectedModels: string[];
+  pipelineData?: Record<string, ModelFlowInfo>;
 }
 
 const MODEL_COLORS: Record<string, string> = {
@@ -48,7 +50,7 @@ const createSankeyPath = (x1: number, y1: number, x2: number, y2: number) => {
   return `M ${x1} ${y1} C ${x1 + cpOffset} ${y1}, ${x2 - cpOffset} ${y2}, ${x2} ${y2}`;
 };
 
-export default function Pipeline({ selectedModels }: PipelineProps) {
+export default function Pipeline({ selectedModels, pipelineData }: PipelineProps) {
   
   const getX = (val: number) => `${(val / 1200) * 100}%`;
   const getY = (val: number) => `${(val / 650) * 100}%`;
@@ -116,11 +118,11 @@ export default function Pipeline({ selectedModels }: PipelineProps) {
           <FlowRiver x1={P.inR} y1={Y.center} x2={P.modL} y2={Y.r5} color={MODEL_COLORS['Kimi (Moonshot)']} isActive={selectedModels.includes('Kimi (Moonshot)')} />
 
           {/* 2. MODELS TO EXTRACTION */}
-          <FlowRiver x1={P.modR} y1={Y.r1} x2={P.extL} y2={Y.r1} color={MODEL_COLORS['GPT-4 (OpenAI)']} isActive={selectedModels.includes('GPT-4 (OpenAI)')} />
-          <FlowRiver x1={P.modR} y1={Y.r2} x2={P.extL} y2={Y.r2} color={MODEL_COLORS['Gemini (Google)']} isActive={selectedModels.includes('Gemini (Google)')} />
-          <FlowRiver x1={P.modR} y1={Y.center} x2={P.extL} y2={Y.center} color={MODEL_COLORS['Claude (Anthropic)']} isActive={selectedModels.includes('Claude (Anthropic)')} />
-          <FlowRiver x1={P.modR} y1={Y.r4} x2={P.extL} y2={Y.r4} color={MODEL_COLORS['Llama 3 (Meta)']} isActive={selectedModels.includes('Llama 3 (Meta)')} />
-          <FlowRiver x1={P.modR} y1={Y.r5} x2={P.extL} y2={Y.r5} color={MODEL_COLORS['Kimi (Moonshot)']} isActive={selectedModels.includes('Kimi (Moonshot)')} />
+          <FlowRiver x1={P.modR} y1={Y.r1} x2={P.extL} y2={Y.r1} color={MODEL_COLORS['GPT-4 (OpenAI)']} isActive={pipelineData ? !!pipelineData['GPT-4 (OpenAI)']?.extracted : selectedModels.includes('GPT-4 (OpenAI)')} />
+          <FlowRiver x1={P.modR} y1={Y.r2} x2={P.extL} y2={Y.r2} color={MODEL_COLORS['Gemini (Google)']} isActive={pipelineData ? !!pipelineData['Gemini (Google)']?.extracted : selectedModels.includes('Gemini (Google)')} />
+          <FlowRiver x1={P.modR} y1={Y.center} x2={P.extL} y2={Y.center} color={MODEL_COLORS['Claude (Anthropic)']} isActive={pipelineData ? !!pipelineData['Claude (Anthropic)']?.extracted : selectedModels.includes('Claude (Anthropic)')} />
+          <FlowRiver x1={P.modR} y1={Y.r4} x2={P.extL} y2={Y.r4} color={MODEL_COLORS['Llama 3 (Meta)']} isActive={pipelineData ? !!pipelineData['Llama 3 (Meta)']?.extracted : selectedModels.includes('Llama 3 (Meta)')} />
+          <FlowRiver x1={P.modR} y1={Y.r5} x2={P.extL} y2={Y.r5} color={MODEL_COLORS['Kimi (Moonshot)']} isActive={pipelineData ? !!pipelineData['Kimi (Moonshot)']?.extracted : selectedModels.includes('Kimi (Moonshot)')} />
 
           {/* 3. EXTRACTION TO CLUSTERING (Re-routed to avoid overlaps) */}
           <FlowRiver x1={P.extR} y1={Y.r1} x2={P.cluL} y2={Y.cTop} color={MODEL_COLORS['GPT-4 (OpenAI)']} isActive={selectedModels.includes('GPT-4 (OpenAI)')} />

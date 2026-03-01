@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { WS_BASE } from '../config';
 import type { AnalysisResult } from '../types';
+import { MODEL_ID_MAP } from '../constants/models';
 
 const STAGE_MAP: Record<string, { message: string; progress: number }> = {
   MODEL_STARTED:  { message: "consulting AIs...",      progress: 10 },
@@ -14,6 +15,91 @@ const STAGE_MAP: Record<string, { message: string; progress: number }> = {
   score_clusters: { message: "scoring trust...",       progress: 85 },
   DONE:           { message: "complete!",              progress: 100 },
 };
+
+function normalizeResult(raw: any): AnalysisResult {
+  const extract = raw?.extract_claims ?? raw?.ml?.extract_claims ?? {};
+  const cluster = raw?.cluster_claims ?? raw?.ml?.cluster_claims ?? {};
+  const umap = raw?.compute_umap ?? raw?.ml?.compute_umap ?? {};
+  const nli = raw?.nli_verify_batch ?? raw?.ml?.nli_verify_batch ?? {};
+  const score = raw?.score_clusters ?? raw?.ml?.score_clusters ?? {};
+
+  const claims = raw?.claims ?? extract?.claims ?? [];
+  const clusters = raw?.clusters ?? cluster?.clusters ?? [];
+  const coords3d = raw?.coords3d ?? umap?.coords3d ?? {};
+  const nli_results = raw?.nli_results ?? nli?.results ?? [];
+  const cluster_scores = raw?.cluster_scores ?? score?.scores ?? [];
+
+  const safe_answer =
+    raw?.safe_answer ??
+    {
+      text: raw?.prompt ?? "",
+      supported_cluster_ids: cluster_scores
+        .filter((s: any) => s?.verdict === "SAFE")
+        .map((s: any) => s?.cluster_id),
+      rejected_cluster_ids: cluster_scores
+        .filter((s: any) => s?.verdict === "REJECT")
+        .map((s: any) => s?.cluster_id),
+    };
+
+  const perModelCounts: Record<string, { total: number; supported: number; caution: number; rejected: number }> = {};
+  for (const m of raw?.models ?? []) {
+    perModelCounts[m.model_id] = { total: 0, supported: 0, caution: 0, rejected: 0 };
+  }
+  for (const claim of claims) {
+    if (!perModelCounts[claim.model_id]) {
+      perModelCounts[claim.model_id] = { total: 0, supported: 0, caution: 0, rejected: 0 };
+    }
+    perModelCounts[claim.model_id].total += 1;
+    const clusterForClaim = clusters.find((c: any) => (c.claim_ids ?? []).includes(claim.claim_id));
+    const clusterScore = cluster_scores.find((s: any) => s.cluster_id === clusterForClaim?.cluster_id);
+    if (clusterScore?.verdict === "SAFE") perModelCounts[claim.model_id].supported += 1;
+    else if (clusterScore?.verdict === "CAUTION") perModelCounts[claim.model_id].caution += 1;
+    else if (clusterScore?.verdict === "REJECT") perModelCounts[claim.model_id].rejected += 1;
+  }
+
+  const model_metrics =
+    raw?.model_metrics ??
+    Object.entries(perModelCounts).map(([model_id, claim_counts]) => ({ model_id, claim_counts }));
+
+  const pipelineFlow = raw?.pipelineFlow ?? (() => {
+    const out: Record<string, { extracted: boolean; cluster: "top" | "center" | "bottom" | "none"; verified: boolean }> = {};
+    const labelOrder = ["top", "center", "bottom"] as const;
+    for (const m of raw?.models ?? []) {
+      const label = MODEL_ID_MAP[m.model_id] ?? m.model_id;
+      const modelClaims = claims.filter((c: any) => c.model_id === m.model_id);
+      const extracted = modelClaims.length > 0;
+      let clusterLabel: "top" | "center" | "bottom" | "none" = "none";
+      let verified = false;
+      if (extracted) {
+        const firstClaim = modelClaims[0];
+        const clusterForClaim = clusters.find((c: any) => (c.claim_ids ?? []).includes(firstClaim.claim_id));
+        const idx = Math.max(0, clusters.findIndex((c: any) => c.cluster_id === clusterForClaim?.cluster_id));
+        clusterLabel = labelOrder[Math.min(idx, 2)] ?? "center";
+        const clusterScore = cluster_scores.find((s: any) => s.cluster_id === clusterForClaim?.cluster_id);
+        verified = clusterScore?.verdict === "SAFE";
+      }
+      out[label] = { extracted, cluster: clusterLabel, verified };
+    }
+    return out;
+  })();
+
+  return {
+    schema_version: raw?.schema_version ?? "1.0",
+    analysis_id: raw?.analysis_id ?? "",
+    prompt: raw?.prompt ?? "",
+    models: raw?.models ?? [],
+    claims,
+    clusters,
+    coords3d,
+    nli_results,
+    cluster_scores,
+    safe_answer,
+    model_metrics,
+    pipelineFlow,
+    warnings: raw?.warnings ?? [],
+    status: raw?.status ?? "DONE",
+  };
+}
 
 export default function LoadingPage() {
   const navigate = useNavigate();
@@ -71,7 +157,8 @@ export default function LoadingPage() {
       } else if (type === 'DONE') {
         setMessage(STAGE_MAP.DONE.message);
         setProgress(100);
-        const result = (payload as { result: AnalysisResult }).result;
+        const raw = (payload as { result: unknown }).result;
+        const result = normalizeResult(raw);
         sessionStorage.setItem(`result_${jobId}`, JSON.stringify(result));
         setTimeout(() => navigate(`/arena?job=${jobId}`), 800);
       } else if (type === 'FATAL_ERROR') {

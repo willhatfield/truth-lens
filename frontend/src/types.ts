@@ -1,3 +1,9 @@
+export interface ModelFlowInfo {
+  extracted: boolean;
+  cluster: 'top' | 'center' | 'bottom' | 'none';
+  verified: boolean;
+}
+
 export interface AnalysisResult {
   schema_version: string;
   analysis_id: string;
@@ -10,6 +16,7 @@ export interface AnalysisResult {
   cluster_scores: { cluster_id: string; trust_score: number; verdict: 'SAFE' | 'CAUTION' | 'REJECT'; agreement: { models_supporting: string[]; count: number }; verification: { best_entailment_prob: number; best_contradiction_prob: number; evidence_passage_id: string } }[];
   safe_answer: { text: string; supported_cluster_ids: string[]; rejected_cluster_ids: string[] };
   model_metrics: { model_id: string; claim_counts: { total: number; supported: number; caution: number; rejected: number } }[];
+  pipelineFlow?: Record<string, ModelFlowInfo>;
   warnings: string[];
   status: string;
 }
