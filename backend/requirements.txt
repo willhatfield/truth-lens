@@ -7,3 +7,4 @@ openai
 anthropic
 google-genai
 httpx
+duckduckgo-search>=6.0,<7
