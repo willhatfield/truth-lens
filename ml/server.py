@@ -26,7 +26,7 @@ _MODAL_API_KEY = os.getenv("ML_MODAL_API_KEY", "").strip()
 
 # Timeouts match Modal function specs exactly.
 _TIMEOUTS = {
-    "extract_claims": 610,
+    "extract_claims": 130,
     "embed_claims": 610,
     "rerank_evidence_batch": 610,
     "compute_umap": 610,

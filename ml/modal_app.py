@@ -98,6 +98,15 @@ cpu_image = (
     )
 )
 
+openai_image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .pip_install("openai>=1.0.0", "pydantic==2.10.6", "fastapi[standard]>=0.115.0")
+    .add_local_python_source(
+        "schemas", "batch_utils", "fallback_utils",
+        "id_utils", "claim_extraction", "scoring", "auth_utils",
+    )
+)
+
 # -- Model name constants -------------------------------------------------
 
 EMBED_MODEL_NAME = "BAAI/bge-large-en-v1.5"
@@ -169,11 +178,9 @@ def _texts_to_claims(
 def _extract_from_single_response(
     model_response,
     analysis_id: str,
-    tokenizer,
-    model,
-    device: str,
+    client,
 ) -> tuple:
-    """Extract claims from one ModelResponse using Llama.
+    """Extract claims from one ModelResponse using OpenAI.
 
     Returns (claims_list, warning_or_none).
     """
@@ -186,29 +193,30 @@ def _extract_from_single_response(
         "a single, verifiable statement. Return ONLY the JSON array, "
         "no other text."
     )
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": model_response.response_text},
-    ]
 
     try:
-        input_ids = tokenizer.apply_chat_template(
-            messages, return_tensors="pt",
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": model_response.response_text},
+            ],
+            temperature=0,
         )
-        input_ids = input_ids.to(device)
-        output_ids = model.generate(
-            input_ids, max_new_tokens=1024, do_sample=False,
-        )
-        generated = output_ids[0][input_ids.shape[1]:]
-        raw_text = tokenizer.decode(generated, skip_special_tokens=True)
+        raw_text = response.choices[0].message.content.strip()
+        # Strip markdown code fences if present
+        if raw_text.startswith("```"):
+            raw_text = raw_text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
         claim_texts = json.loads(raw_text)
+        if not isinstance(claim_texts, list):
+            claim_texts = list(claim_texts.values())[0] if claim_texts else []
         claims = _texts_to_claims(
             claim_texts, analysis_id, model_response.model_id,
         )
         return (claims, None)
     except Exception as exc:
         warning = (
-            f"Llama extraction failed for {model_response.model_id}, "
+            f"OpenAI extraction failed for {model_response.model_id}, "
             f"using sentence-split fallback: {exc}"
         )
         sentences = sentence_split_claims(model_response.response_text)
@@ -218,18 +226,15 @@ def _extract_from_single_response(
         return (claims, warning)
 
 
-# -- 1. extract_claims (GPU) -----------------------------------------------
+# -- 1. extract_claims (CPU, OpenAI) ----------------------------------------
 
 @app.function(
-    image=gpu_image,
-    gpu="A10G",
-    memory=16384,
-    timeout=600,
-    volumes={VOLUME_MOUNT: model_volume},
-    secrets=[modal.Secret.from_name("huggingface-secret")],
+    image=openai_image,
+    timeout=120,
+    secrets=[modal.Secret.from_name("truthlens-api-key")],
 )
 def extract_claims(payload: dict) -> dict:
-    """Decompose model responses into atomic claims using Llama."""
+    """Decompose model responses into atomic claims using OpenAI."""
     try:
         req = ExtractClaimsRequest(**payload)
     except Exception as exc:
@@ -244,27 +249,24 @@ def extract_claims(payload: dict) -> dict:
     warnings: list = []
 
     try:
-        from transformers import AutoTokenizer, AutoModelForCausalLM
-        import torch
+        from openai import OpenAI
 
-        tokenizer = AutoTokenizer.from_pretrained(LLAMA_MODEL_NAME, token=os.environ.get("HF_TOKEN"))
-        model = AutoModelForCausalLM.from_pretrained(LLAMA_MODEL_NAME, token=os.environ.get("HF_TOKEN"))
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        model.to(device)
-        model.eval()
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY not in truthlens-api-key secret")
+        client = OpenAI(api_key=api_key)
 
         for i in range(len(req.responses)):
             if i >= MAX_RESPONSES:
                 break
             claims, warning = _extract_from_single_response(
-                req.responses[i], req.analysis_id,
-                tokenizer, model, device,
+                req.responses[i], req.analysis_id, client,
             )
             all_claims.extend(claims)
             if warning is not None:
                 warnings.append(warning)
     except Exception as exc:
-        warnings.append(f"extract_claims model load failed: {exc}")
+        warnings.append(f"extract_claims failed: {exc}")
         all_claims = _fallback_extract_all(req)
 
     resp = ExtractClaimsResponse(
@@ -997,18 +999,8 @@ def generate_llama(payload: dict) -> dict:
     return {"response_text": output[0]["generated_text"][len(prompt):]}
 
 
-_kimi_image = (
-    modal.Image.debian_slim(python_version="3.11")
-    .pip_install("openai>=1.0.0", "pydantic==2.10.6", "fastapi[standard]>=0.115.0")
-    .add_local_python_source(
-        "schemas", "batch_utils", "fallback_utils",
-        "id_utils", "claim_extraction", "scoring", "auth_utils",
-    )
-)
-
-
 @app.function(
-    image=_kimi_image,
+    image=openai_image,
     secrets=[modal.Secret.from_name("truthlens-api-key")],
     min_containers=2,
 )
@@ -1018,7 +1010,7 @@ def generate_kimi(payload: dict) -> dict:
     api_key = os.environ.get("KIMI_API_KEY")
     if not api_key:
         raise RuntimeError("KIMI_API_KEY not in truthlens-api-key secret")
-    client = OpenAI(api_key=api_key, base_url="https://api.moonshot.cn/v1")
+    client = OpenAI(api_key=api_key, base_url="https://api.moonshot.ai/v1")
     prompt = payload.get("prompt", "")
     response = client.chat.completions.create(
         model="moonshot-v1-8k",
@@ -1030,11 +1022,8 @@ def generate_kimi(payload: dict) -> dict:
 # -- HTTP Endpoints for Vercel integration ---------------------------------
 
 @app.function(
-    image=gpu_image,
-    gpu="A10G",
-    memory=16384,
-    timeout=600,
-    volumes={VOLUME_MOUNT: model_volume},
+    image=openai_image,
+    timeout=120,
     secrets=[modal.Secret.from_name("truthlens-api-key")],
 )
 @modal.fastapi_endpoint(method="POST")
