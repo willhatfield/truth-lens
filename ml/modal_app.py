@@ -850,6 +850,8 @@ def score_clusters(payload: dict) -> dict:
             compute_agreement_score,
             find_best_nli_for_cluster,
             compute_verification_score,
+            compute_independence_score,
+            compute_consistency_score,
             compute_trust_score,
             determine_verdict,
         )
@@ -864,6 +866,8 @@ def score_clusters(payload: dict) -> dict:
                 compute_agreement_score,
                 find_best_nli_for_cluster,
                 compute_verification_score,
+                compute_independence_score,
+                compute_consistency_score,
                 compute_trust_score,
                 determine_verdict,
             )
@@ -889,6 +893,8 @@ def _score_single_cluster(
     compute_agreement_score_fn,
     find_best_nli_for_cluster_fn,
     compute_verification_score_fn,
+    compute_independence_score_fn,
+    compute_consistency_score_fn,
     compute_trust_score_fn,
     determine_verdict_fn,
 ) -> ClusterScore:
@@ -903,10 +909,14 @@ def _score_single_cluster(
     )
     verification = compute_verification_score_fn(best_ent, best_contra)
 
+    total_unique_models = len(set(
+        claim.model_id for claim in req.claims.values()
+    ))
+    independence = compute_independence_score_fn(len(supporting), total_unique_models)
+    consistency = compute_consistency_score_fn(best_contra)
+
     trust = compute_trust_score_fn(
-        agreement, verification,
-        req.weights.agreement_weight,
-        req.weights.verification_weight,
+        agreement, verification, independence, consistency,
     )
 
     verdict = determine_verdict_fn(

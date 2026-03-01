@@ -424,6 +424,8 @@ def build_score_response() -> dict:
     """
     from scoring import (
         compute_agreement_score,
+        compute_consistency_score,
+        compute_independence_score,
         compute_verification_score,
         compute_trust_score,
         determine_verdict,
@@ -432,16 +434,20 @@ def build_score_response() -> dict:
     cluster_resp = build_cluster_claims_response()
     clusters = cluster_resp["clusters"]
 
-    # Cluster 1: correct models
+    # Cluster 1: correct models (4 of 5 unique models)
     agreement_1 = compute_agreement_score(4, 5)
     verification_1 = compute_verification_score(0.85, 0.05)
-    trust_1 = compute_trust_score(agreement_1, verification_1, 0.4, 0.6)
+    independence_1 = compute_independence_score(4, 5)
+    consistency_1 = compute_consistency_score(0.05)
+    trust_1 = compute_trust_score(agreement_1, verification_1, independence_1, consistency_1)
     verdict_1 = determine_verdict(trust_1, 0.05, 75, 45)
 
-    # Cluster 2: flat-bot only
+    # Cluster 2: flat-bot only (1 of 5 unique models)
     agreement_2 = compute_agreement_score(1, 5)
     verification_2 = compute_verification_score(0.05, 0.80)
-    trust_2 = compute_trust_score(agreement_2, verification_2, 0.4, 0.6)
+    independence_2 = compute_independence_score(1, 5)
+    consistency_2 = compute_consistency_score(0.80)
+    trust_2 = compute_trust_score(agreement_2, verification_2, independence_2, consistency_2)
     verdict_2 = determine_verdict(trust_2, 0.80, 75, 45)
 
     scores = [
