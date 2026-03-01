@@ -3,6 +3,7 @@ import { Search, ChevronRight, Paperclip, X, FileText, Clock, User, ShieldCheck,
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE } from '../config';
+import React from 'react';
 
 // Custom component to recreate the Figma glowing variant
 const NavButton = ({ children, width, onClick }: { children: React.ReactNode; width: string, onClick?: () => void }) => {

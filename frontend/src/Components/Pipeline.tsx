@@ -4,6 +4,7 @@ import {
   Network, ShieldCheck, ShieldAlert, 
   CheckCircle2, Trash2 
 } from 'lucide-react';
+import React from 'react';
 
 interface PipelineProps {
   selectedModels: string[];
