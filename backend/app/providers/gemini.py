@@ -27,7 +27,7 @@ async def stream_gemini(prompt: str) -> AsyncIterator[str]:
     text = await asyncio.to_thread(
         _generate_gemini_text,
         prompt,
-        "gemini-2.0-flash-001",
+        "gemini-2.5-flash",
         api_key,
     )
     async for chunk in stream_static_text(text):
