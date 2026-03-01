@@ -40,10 +40,11 @@ interface ClaimNode {
 }
 
 // --- GLOBE PROJECTION ---
-const HOVER_RADIUS = 9.0;       // base orbit distance for all clusters
-const CLAIM_SPREAD = 1.5;      // max tangent offset for claims within a cluster
-const AFFILIATION_PULL = 2.0;  // how much high-trust claims get pulled toward center globe
-const RADIUS_JITTER = 0.4;    // small random offset to break perfect shells
+const GLOBE_RADIUS = 4.5;
+const HOVER_RADIUS = GLOBE_RADIUS * 2 * 3;  // 3 globe diameters from center (27)
+const CLAIM_SPREAD = 3.0;       // max tangent offset for claims within a cluster
+const AFFILIATION_PULL = 8.0;   // how much high-trust claims get pulled toward center globe
+const RADIUS_JITTER = 1.2;     // random radial offset to break perfect shells
 
 /** Deterministic hash for a string → [0,1). Stable across renders. */
 function hashStr(s: string): number {
@@ -219,7 +220,7 @@ function projectToGlobe(
     const [x, y, z] = projected[id];
     const curR = Math.sqrt(x * x + y * y + z * z);
     if (curR > 0) {
-      const newR = Math.max(5.0, curR + radialShift); // never inside the globe (4.5)
+      const newR = Math.max(GLOBE_RADIUS + 1.5, curR + radialShift); // never inside the globe
       const scale = newR / curR;
       projected[id] = [x * scale, y * scale, z * scale];
     }
@@ -529,7 +530,7 @@ export default function Constellation({ selectedModels, result }: ConstellationP
 
   return (
     <div className="relative w-full h-full">
-      <Canvas camera={{ position: [0, 15, 60], fov: 55 }} gl={{ alpha: true, antialias: true }} onPointerMissed={() => setActiveNode(null)}>
+      <Canvas camera={{ position: [0, 30, 90], fov: 55 }} gl={{ alpha: true, antialias: true }} onPointerMissed={() => setActiveNode(null)}>
         <ambientLight intensity={1.5} color="#EBF0FF" />
         <pointLight position={[20, 20, 20]} intensity={2} color="#A9BDE8" />
         
