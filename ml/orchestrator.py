@@ -319,7 +319,7 @@ def _run_cluster_umap_stage(analysis_id, claims, vectors,
             "schema_version": "1.0",
             "analysis_id": analysis_id,
             "vectors": vectors,
-            "claim_metadata": claim_metadata,
+            "claims": claim_metadata,
         })
         clusters = cluster_resp.get("clusters", [])
         state["warnings"].extend(

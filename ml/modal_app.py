@@ -8,6 +8,8 @@ Each function accepts a plain dict, validates via Pydantic inside the
 boundary, and returns a plain dict (always including a ``warnings`` field).
 """
 
+import os
+
 import modal
 
 from schemas import (
@@ -99,7 +101,7 @@ cpu_image = (
 
 EMBED_MODEL_NAME = "BAAI/bge-large-en-v1.5"
 RERANK_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-NLI_MODEL_NAME = "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli"
+NLI_MODEL_NAME = "cross-encoder/nli-deberta-v3-large"
 LLAMA_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
 
 MAX_RESPONSES = 10
@@ -243,8 +245,8 @@ def extract_claims(payload: dict) -> dict:
         from transformers import AutoTokenizer, AutoModelForCausalLM
         import torch
 
-        tokenizer = AutoTokenizer.from_pretrained(LLAMA_MODEL_NAME)
-        model = AutoModelForCausalLM.from_pretrained(LLAMA_MODEL_NAME)
+        tokenizer = AutoTokenizer.from_pretrained(LLAMA_MODEL_NAME, token=os.environ.get("HF_TOKEN"))
+        model = AutoModelForCausalLM.from_pretrained(LLAMA_MODEL_NAME, token=os.environ.get("HF_TOKEN"))
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model.to(device)
         model.eval()
