@@ -439,7 +439,7 @@ def build_score_response() -> dict:
     verification_1 = compute_verification_score(0.85, 0.05)
     independence_1 = compute_independence_score(4, 5)
     consistency_1 = compute_consistency_score(0.05)
-    trust_1 = compute_trust_score(agreement_1, verification_1, independence_1, consistency_1)
+    trust_1 = compute_trust_score(agreement_1, verification_1, independence_1, consistency_1, has_evidence=True)
     verdict_1 = determine_verdict(trust_1, 0.05, 75, 45)
 
     # Cluster 2: flat-bot only (1 of 5 unique models)
@@ -447,7 +447,7 @@ def build_score_response() -> dict:
     verification_2 = compute_verification_score(0.05, 0.80)
     independence_2 = compute_independence_score(1, 5)
     consistency_2 = compute_consistency_score(0.80)
-    trust_2 = compute_trust_score(agreement_2, verification_2, independence_2, consistency_2)
+    trust_2 = compute_trust_score(agreement_2, verification_2, independence_2, consistency_2, has_evidence=True)
     verdict_2 = determine_verdict(trust_2, 0.80, 75, 45)
 
     scores = [

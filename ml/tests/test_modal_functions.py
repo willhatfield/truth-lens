@@ -958,6 +958,7 @@ class TestScoreClusters:
         mock_scoring.find_best_nli_for_cluster.return_value = (
             0.9, 0.05, "p_1",
         )
+        mock_scoring.check_has_evidence.return_value = True
         mock_scoring.compute_verification_score.return_value = 85.0
         mock_scoring.compute_trust_score.return_value = 75
         mock_scoring.determine_verdict.return_value = "SAFE"
@@ -995,6 +996,7 @@ class TestScoreClusters:
         mock_scoring.find_best_nli_for_cluster.return_value = (
             0.95, 0.1, "p_1",
         )
+        mock_scoring.check_has_evidence.return_value = True
         mock_scoring.compute_verification_score.return_value = 85.0
         mock_scoring.compute_trust_score.return_value = 80
         mock_scoring.determine_verdict.return_value = "SAFE"
@@ -1023,6 +1025,7 @@ class TestScoreClusters:
         mock_scoring.find_best_nli_for_cluster.return_value = (
             0.6, 0.5, "p_1",
         )
+        mock_scoring.check_has_evidence.return_value = True
         mock_scoring.compute_verification_score.return_value = 10.0
         mock_scoring.compute_trust_score.return_value = 50
         mock_scoring.determine_verdict.return_value = "CAUTION"
@@ -1051,6 +1054,7 @@ class TestScoreClusters:
         mock_scoring.find_best_nli_for_cluster.return_value = (
             0.1, 0.8, "p_1",
         )
+        mock_scoring.check_has_evidence.return_value = True
         mock_scoring.compute_verification_score.return_value = -70.0
         mock_scoring.compute_trust_score.return_value = 30
         mock_scoring.determine_verdict.return_value = "REJECT"
@@ -1079,6 +1083,7 @@ class TestScoreClusters:
         mock_scoring.find_best_nli_for_cluster.return_value = (
             0.0, 0.0, "",
         )
+        mock_scoring.check_has_evidence.return_value = False
         mock_scoring.compute_verification_score.return_value = 0.0
         mock_scoring.compute_trust_score.return_value = 8
         mock_scoring.determine_verdict.return_value = "REJECT"
@@ -1113,6 +1118,7 @@ class TestScoreClusters:
             (0.9, 0.05, "p_1"),
             (0.1, 0.8, "p_2"),
         ]
+        mock_scoring.check_has_evidence.side_effect = [True, True]
         mock_scoring.compute_verification_score.side_effect = [85.0, -70.0]
         mock_scoring.compute_trust_score.side_effect = [80, 20]
         mock_scoring.determine_verdict.side_effect = ["SAFE", "REJECT"]
