@@ -74,16 +74,13 @@ export default function Pipeline({ selectedModels, pipelineData }: PipelineProps
   const isClusterVerified = (clusterId: "top" | "center" | "bottom") =>
     selectedModels.some((name) => {
       const f = getFlow(name);
-      return f.extracted && f.cluster === clusterId && f.verified;
+      // UX rule: consensus lanes (top/center) pass; solo lane (bottom) fails.
+      return f.extracted && f.cluster === clusterId && clusterId !== "bottom";
     });
 
   const isClusterRejected = (clusterId: "top" | "center" | "bottom") => {
-    const clusterModels = selectedModels.filter((name) => {
-      const f = getFlow(name);
-      return f.extracted && f.cluster === clusterId;
-    });
-    if (clusterModels.length === 0) return false;
-    return clusterModels.every((name) => !getFlow(name).verified);
+    // UX rule: only bottom lane is rejected/filtered.
+    return clusterId === "bottom" && isClusterActive("bottom");
   };
 
   const FlowRiver = ({ x1, y1, x2, y2, color, isRejected = false, isActive = true, isDrop = false }: any) => {
