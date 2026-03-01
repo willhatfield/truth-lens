@@ -24,7 +24,8 @@ const SUMMARY_METRICS = {
   trustScore: 94,
   claimsExtracted: 32,
   sourcesVerified: 18,
-  modelsReachedConsensus: 5
+  modelsReachedConsensus: 5,
+  totalClusters: 5
 };
 
 // 2. TYPED THE INITIAL DATA
@@ -97,13 +98,12 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
   // Derive data from real result, or fall back to mock
   const derivedSynthesis = useMemo<SynthesisBlock[]>(() => {
     if (!result || !result.safe_answer || !result.clusters) return INITIAL_SYNTHESIS;
-    const { clusters, cluster_scores, claims, safe_answer } = result;
-    const supportedIds = new Set(safe_answer.supported_cluster_ids);
+    const { clusters, cluster_scores, claims } = result;
+    const verdictOrder: Record<string, number> = { SAFE: 0, CAUTION: 1, REJECT: 2 };
     return clusters
-      .filter(c => supportedIds.has(c.cluster_id))
       .map(c => {
         const score = cluster_scores.find(s => s.cluster_id === c.cluster_id);
-        const verdict = score?.verdict ?? 'SAFE';
+        const verdict = score?.verdict ?? 'REJECT';
         const trust: SynthesisBlock['trust'] =
           verdict === 'SAFE' ? 'VerifiedSafe' :
           verdict === 'CAUTION' ? 'CautionUnverified' : 'Rejected';
@@ -118,22 +118,25 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
           expandedReasoning: score
             ? `Trust score: ${score.trust_score}. ${score.agreement.count} model(s) supporting.`
             : 'No score data available.',
+          _verdict: verdict,
+          _trustScore: score?.trust_score ?? 0,
         };
-      });
+      })
+      .sort((a, b) => (verdictOrder[a._verdict] ?? 2) - (verdictOrder[b._verdict] ?? 2) || b._trustScore - a._trustScore);
   }, [result]);
 
   const derivedMetrics = useMemo(() => {
     if (!result) return SUMMARY_METRICS;
     const { claims, nli_results, clusters, cluster_scores } = result;
-    const safeClusters = cluster_scores.filter(s => s.verdict === 'SAFE');
-    const avgTrust = safeClusters.length > 0
-      ? Math.round(safeClusters.reduce((a, s) => a + s.trust_score, 0) / safeClusters.length)
+    const avgTrust = cluster_scores.length > 0
+      ? Math.round(cluster_scores.reduce((a, s) => a + s.trust_score, 0) / cluster_scores.length)
       : 0;
     return {
       trustScore: avgTrust,
       claimsExtracted: claims.length,
       sourcesVerified: nli_results.filter(r => r.label === 'entailment').length,
       modelsReachedConsensus: clusters.filter(c => c.claim_ids.length > 1).length,
+      totalClusters: clusters.length,
     };
   }, [result]);
 
@@ -199,11 +202,26 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
                   <BrainCircuit className="w-4 h-4 text-[#A9BDE8]" />
                   Synthesized Safe Answer
                 </h2>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#1A2335] border border-[#2C3A50] rounded-full">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#00D68F]" />
-                  <span className="text-[#00D68F] text-[10px] font-bold tracking-widest uppercase">Verified Consensus</span>
-                </div>
+                {(() => {
+                  const hasSafe = result ? result.cluster_scores.some(s => s.verdict === 'SAFE') : true;
+                  const hasCaution = result ? result.cluster_scores.some(s => s.verdict === 'CAUTION') : false;
+                  const badgeColor = hasSafe ? '#00D68F' : hasCaution ? '#FFB020' : '#FF4757';
+                  const badgeLabel = hasSafe ? 'Verified Consensus' : hasCaution ? 'Caution — Unverified' : 'Unverified';
+                  return (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#1A2335] border border-[#2C3A50] rounded-full">
+                      <ShieldCheck className="w-3.5 h-3.5" style={{ color: badgeColor }} />
+                      <span className="text-[10px] font-bold tracking-widest uppercase" style={{ color: badgeColor }}>{badgeLabel}</span>
+                    </div>
+                  );
+                })()}
               </div>
+
+              {/* SAFE ANSWER TEXT FROM BACKEND */}
+              {result?.safe_answer?.text && (
+                <p className="text-[#CCD8FF] text-[14px] leading-relaxed mb-5 pb-5 border-b border-[#2C3A50]/50">
+                  {result.safe_answer.text}
+                </p>
+              )}
 
               {/* THE ANSWER CONTENT */}
               <div className="text-[#EBF0FF] text-[15px] leading-relaxed">
@@ -310,11 +328,11 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
               <div className="relative flex items-center justify-center w-32 h-32 mb-1">
                 <svg className="w-full h-full transform -rotate-90">
                   <circle cx="64" cy="64" r="56" fill="none" stroke="#1A2335" strokeWidth="10" />
-                  <motion.circle cx="64" cy="64" r="56" fill="none" stroke="#00D68F" strokeWidth="10" strokeLinecap="round" strokeDasharray="351.86" initial={{ strokeDashoffset: 351.86 }} animate={{ strokeDashoffset: 351.86 - (351.86 * (displayMetrics.trustScore / 100)) }} transition={{ duration: 1.5 }} />
+                  <motion.circle cx="64" cy="64" r="56" fill="none" stroke={displayMetrics.trustScore >= 75 ? '#00D68F' : displayMetrics.trustScore >= 40 ? '#FFB020' : '#FF4757'} strokeWidth="10" strokeLinecap="round" strokeDasharray="351.86" initial={{ strokeDashoffset: 351.86 }} animate={{ strokeDashoffset: 351.86 - (351.86 * (displayMetrics.trustScore / 100)) }} transition={{ duration: 1.5 }} />
                 </svg>
                 <div className="absolute flex flex-col items-center">
                   <span className="text-[#EBF0FF] text-4xl font-bold">{displayMetrics.trustScore}</span>
-                  <span className="text-[#00D68F] text-[10px] font-bold uppercase mt-0.5">/ 100</span>
+                  <span className="text-[10px] font-bold uppercase mt-0.5" style={{ color: displayMetrics.trustScore >= 75 ? '#00D68F' : displayMetrics.trustScore >= 40 ? '#FFB020' : '#FF4757' }}>/ 100</span>
                 </div>
               </div>
             </div>
@@ -330,7 +348,7 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-[#90A2B3]"><Activity className="w-3.5 h-3.5" /><span className="text-[13px]">Consensus Matches</span></div>
-                <span className="text-[#EBF0FF] text-[13px] font-mono font-bold">{displayMetrics.modelsReachedConsensus} / 5</span>
+                <span className="text-[#EBF0FF] text-[13px] font-mono font-bold">{displayMetrics.modelsReachedConsensus} / {displayMetrics.totalClusters}</span>
               </div>
             </div>
 
