@@ -6,6 +6,8 @@ from scoring import (
     TOTAL_MODELS,
     clamp,
     compute_agreement_score,
+    compute_consistency_score,
+    compute_independence_score,
     compute_trust_score,
     compute_verification_score,
     determine_verdict,
@@ -82,35 +84,78 @@ def test_verification_both_zero():
 
 
 # ---------------------------------------------------------------------------
+# compute_independence_score
+# ---------------------------------------------------------------------------
+
+
+def test_independence_all_models_support():
+    """All models supporting yields 100.0."""
+    assert compute_independence_score(5, 5) == 100.0
+
+
+def test_independence_partial_support():
+    """Three of five models yields 60.0."""
+    assert compute_independence_score(3, 5) == 60.0
+
+
+def test_independence_zero_total():
+    """Zero total models returns 0.0 without division by zero."""
+    assert compute_independence_score(3, 0) == 0.0
+
+
+# ---------------------------------------------------------------------------
+# compute_consistency_score
+# ---------------------------------------------------------------------------
+
+
+def test_consistency_no_contradiction():
+    """Zero contradiction yields 100.0."""
+    assert compute_consistency_score(0.0) == 100.0
+
+
+def test_consistency_full_contradiction():
+    """Full contradiction yields 0.0."""
+    assert compute_consistency_score(1.0) == 0.0
+
+
+def test_consistency_partial_contradiction():
+    """0.2 contradiction yields 80.0."""
+    assert compute_consistency_score(0.2) == 80.0
+
+
+# ---------------------------------------------------------------------------
 # compute_trust_score
 # ---------------------------------------------------------------------------
 
 
 def test_trust_score_typical():
-    """Typical weighted combination of agreement and verification scores."""
-    agreement = 60.0
-    verification = 85.0
-    result = compute_trust_score(agreement, verification, 0.6, 0.4)
-    expected = round(0.6 * 60.0 + 0.4 * 85.0)
+    """Formula: 0.35*agreement + 0.35*verification + 0.15*independence + 0.15*consistency."""
+    agreement = 80.0
+    verification = 70.0
+    independence = 60.0
+    consistency = 90.0
+    result = compute_trust_score(agreement, verification, independence, consistency)
+    expected = round(0.35 * 80.0 + 0.35 * 70.0 + 0.15 * 60.0 + 0.15 * 90.0)
     assert result == expected
 
 
-def test_trust_score_zero_weights():
-    """Zero weights produce a trust score of 0."""
-    result = compute_trust_score(80.0, 90.0, 0.0, 0.0)
+def test_trust_score_all_zero():
+    """All zero inputs produce a trust score of 0."""
+    result = compute_trust_score(0.0, 0.0, 0.0, 0.0)
     assert result == 0
 
 
 def test_trust_score_clamped_at_100():
-    """Both weights at 1.0 can exceed 100 unclamped; result must be <= 100."""
-    result = compute_trust_score(100.0, 100.0, 1.0, 1.0)
+    """Scores above 100 are clamped to 100 (e.g. agreement=200 would overflow without clamping)."""
+    result = compute_trust_score(200.0, 200.0, 200.0, 200.0)
     assert result == 100
 
 
-def test_trust_score_clamped_at_0():
-    """Trust score should never go below 0."""
-    result = compute_trust_score(0.0, 0.0, 0.0, 0.0)
-    assert result == 0
+def test_trust_score_negative_verification_clamped():
+    """Negative verification is clamped to 0 before weighting."""
+    result = compute_trust_score(100.0, -50.0, 100.0, 100.0)
+    expected = round(0.35 * 100.0 + 0.35 * 0.0 + 0.15 * 100.0 + 0.15 * 100.0)
+    assert result == expected
 
 
 # ---------------------------------------------------------------------------
