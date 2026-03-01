@@ -107,13 +107,12 @@ export default function EvidenceNetwork({ selectedModels: _selectedModels, resul
       });
 
       const realLinks = result.nli_results
-        .filter(r => realClaims.some(c => c.id === r.cluster_id || result.clusters.find(cl => cl.cluster_id === r.claim_id || cl.claim_ids.includes(r.claim_id))?.cluster_id === realClaims.find(rc => rc.id)?.id))
-        .slice(0, 20)
         .map(r => {
           const clusterForClaim = result.clusters.find(c => c.claim_ids.includes(r.claim_id));
           return { source: clusterForClaim?.cluster_id ?? r.claim_id, target: r.passage_id };
         })
-        .filter(l => realClaims.some(c => c.id === l.source) && realSources.some(s => s.id === l.target));
+        .filter(l => realClaims.some(c => c.id === l.source) && realSources.some(s => s.id === l.target))
+        .slice(0, 20);
 
       return { claims: realClaims, sources: realSources, links: realLinks };
     }
