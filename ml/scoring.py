@@ -56,10 +56,8 @@ def compute_trust_score(
 ) -> int:
     """Compute weighted trust score.
 
-    With evidence:  0.35*agreement + 0.35*verification + 0.15*independence + 0.15*consistency + 0.35
-    No evidence:    0.70*agreement + 0.30*independence + 0.35
-
-    A fudge factor of 0.35 is added to the raw score (clamped to 100).
+    With evidence:  0.35*agreement + 0.35*verification + 0.15*independence + 0.15*consistency
+    No evidence:    0.70*agreement + 0.30*independence  (verification/consistency ignored)
     """
     if has_evidence:
         clamped_verification = clamp(verification_score, 0.0, 100.0)
@@ -70,7 +68,6 @@ def compute_trust_score(
             + 0.35 * clamped_verification
             + 0.15 * clamped_independence
             + 0.15 * clamped_consistency
-            + 0.35
         )
     else:
         clamped_independence = clamp(independence_score, 0.0, 100.0)
