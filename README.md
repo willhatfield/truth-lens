@@ -186,4 +186,6 @@ Planned features include:
 Verify their claims.  
 Trust the consensus.**
 
-**Devpost HackIllionis:** https://devpost.com/submit-to/28870-hackillinois-2026/manage/submissions/954612-truthlens/project_details/edit
+---
+
+**Devpost HackIllionis:** https://devpost.com/software/truthlens-rgaqml
