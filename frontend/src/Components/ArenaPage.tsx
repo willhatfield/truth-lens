@@ -62,7 +62,7 @@ export default function ArenaPage() {
   // State for AI Model Toggles
   const [selectedModels, setSelectedModels] = useState(['GPT-4 (OpenAI)', 'Gemini (Google)', 'Claude (Anthropic)', 'Llama 3 (Meta)', 'Kimi (Moonshot)']);
 
-  const navItems = ["Synthesized Answer", "Constellation", "Pipeline", "Heatmap", "Evidence Network", "Knowledge Deck"];
+  const navItems = ["Synthesized Answer", "Constellation", "Pipeline", "Heatmap"];
   const aiModels = [
     { name: 'GPT-4 (OpenAI)', color: '#10A37F', checkColor: '#024023' },
     { name: 'Gemini (Google)', color: '#428F54', checkColor: '#02542D' },
