@@ -852,6 +852,7 @@ def score_clusters(payload: dict) -> dict:
             find_supporting_models,
             compute_agreement_score,
             find_best_nli_for_cluster,
+            check_has_evidence,
             compute_verification_score,
             compute_independence_score,
             compute_consistency_score,
@@ -868,6 +869,7 @@ def score_clusters(payload: dict) -> dict:
                 find_supporting_models,
                 compute_agreement_score,
                 find_best_nli_for_cluster,
+                check_has_evidence,
                 compute_verification_score,
                 compute_independence_score,
                 compute_consistency_score,
@@ -895,6 +897,7 @@ def _score_single_cluster(
     find_supporting_models_fn,
     compute_agreement_score_fn,
     find_best_nli_for_cluster_fn,
+    check_has_evidence_fn,
     compute_verification_score_fn,
     compute_independence_score_fn,
     compute_consistency_score_fn,
@@ -910,6 +913,7 @@ def _score_single_cluster(
     best_ent, best_contra, evidence_pid = find_best_nli_for_cluster_fn(
         cluster.claim_ids, req.nli_results,
     )
+    has_evidence = check_has_evidence_fn(evidence_pid)
     verification = compute_verification_score_fn(best_ent, best_contra)
 
     total_unique_models = len(set(
@@ -920,6 +924,7 @@ def _score_single_cluster(
 
     trust = compute_trust_score_fn(
         agreement, verification, independence, consistency,
+        has_evidence=has_evidence,
     )
 
     verdict = determine_verdict_fn(
