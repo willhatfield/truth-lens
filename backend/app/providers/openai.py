@@ -27,12 +27,10 @@ async def stream_openai(
     if model is None:
         model = os.getenv("OPENAI_MODEL", "gpt-4o")
     client = _get_openai_client()
-    stream = await client.responses.create(
-        model=model,
-        input=prompt,
-        instructions=instructions,
-        stream=True,
-    )
+    kwargs = {"model": model, "input": prompt, "stream": True}
+    if instructions is not None:
+        kwargs["instructions"] = instructions
+    stream = await client.responses.create(**kwargs)
 
     async for event in stream:
         etype = getattr(event, "type", None) or (event.get("type") if isinstance(event, dict) else None)

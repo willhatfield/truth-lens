@@ -65,6 +65,7 @@ async def _run_model(
         warning = (
             f"{model_id} stream timed out after {MODEL_TIMEOUT_SECONDS}s"
         )
+        print(f"[WARN] {warning}", flush=True)
         await publish(
             analysis_id,
             EventEnvelope(
@@ -74,7 +75,8 @@ async def _run_model(
             ).model_dump(),
         )
     except Exception as exc:
-        warning = f"{model_id} stream failed: {exc}"
+        warning = f"{model_id} stream failed: {type(exc).__name__}: {exc}"
+        print(f"[WARN] {warning}", flush=True)
         await publish(
             analysis_id,
             EventEnvelope(
@@ -127,6 +129,9 @@ async def run_pipeline(analysis_id: str, prompt: str, publish: PublishFn) -> Non
             if result["warning"]:
                 warnings.append(result["warning"])
 
+        non_empty = [m["model_id"] for m in models if m.get("response_text")]
+        print(f"[INFO] Models with non-empty responses: {non_empty}", flush=True)
+
         ml_result: dict = {}
         try:
             ml_result = await run_ml_pipeline(
@@ -134,9 +139,13 @@ async def run_pipeline(analysis_id: str, prompt: str, publish: PublishFn) -> Non
                 model_outputs=models,
                 publish=publish,
             )
-            warnings.extend(ml_result.get("warnings", []) or [])
+            ml_warnings = ml_result.get("warnings", []) or []
+            if ml_warnings:
+                print(f"[WARN] ML pipeline warnings: {ml_warnings}", flush=True)
+            warnings.extend(ml_warnings)
         except Exception as exc:
-            ml_warning = f"ml pipeline failed: {exc}"
+            ml_warning = f"ml pipeline failed: {type(exc).__name__}: {exc}"
+            print(f"[ERROR] {ml_warning}", flush=True)
             warnings.append(ml_warning)
             await publish(
                 analysis_id,
@@ -158,7 +167,7 @@ async def run_pipeline(analysis_id: str, prompt: str, publish: PublishFn) -> Non
                         "analysis_id": analysis_id,
                         "prompt": prompt,
                         "models": models,
-                        "ml": ml_result,
+                        **{k: v for k, v in ml_result.items() if k != "warnings"},
                         "warnings": warnings,
                     }
                 },
