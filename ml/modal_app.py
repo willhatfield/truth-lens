@@ -177,16 +177,12 @@ def _extract_from_single_response(
     from claim_extraction import sentence_split_claims
     import json
 
-    system_prompt = """
-    You are a truth-scoring evaluator. You will be provided with a specific Claim and a list of Evidence passages from the web.
-
-    Evaluate the claim on two distinct dimensions and score them from 0 to 100:
-    1. Independence: Do the evidence passages come from diverse, independent sources? (100 = highly diverse, reputable, and independent sources; 0 = single source, echo chamber, or highly biased).
-    2. Consistency: Is the internal logic of the claim sound, and does the evidence consistently align without logical contradictions? (100 = perfectly consistent logic; 0 = logical fallacies or highly conflicting evidence).
-
-    Return ONLY a JSON object with this exact structure:
-    {"independence_score": [0-100], "consistency_score": [0-100]}
-    """
+    system_prompt = (
+        "You are a claim extractor. Given a text, extract all atomic "
+        "factual claims as a JSON array of strings. Each claim should be "
+        "a single, verifiable statement. Return ONLY the JSON array, "
+        "no other text."
+    )
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": model_response.response_text},

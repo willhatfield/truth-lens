@@ -9,7 +9,6 @@ from .providers.claude import stream_claude
 from .modal_calls.kimi import stream_kimi
 from .modal_calls.llama import stream_llama
 from .ml_client import run_ml_pipeline
-from .evidence_retrieval import retrieve_evidence
 
 StreamerFn = Callable[[str], AsyncIterator[str]]
 PublishFn = Callable[[str, dict], Awaitable[None]]
@@ -135,26 +134,9 @@ async def run_pipeline(analysis_id: str, prompt: str, publish: PublishFn) -> Non
 
         ml_result: dict = {}
         try:
-            async def _evidence_step(claims: list[dict]) -> dict:
-                passages = await retrieve_evidence(claims, max_results=3)
-                total_passages = sum(len(v) for v in passages.values())
-                await publish(
-                    analysis_id,
-                    EventEnvelope(
-                        analysis_id=analysis_id,
-                        type="EVIDENCE_CANDIDATES_READY",
-                        payload={
-                            "claim_count": len(passages),
-                            "total_passages": total_passages,
-                        },
-                    ).model_dump(),
-                )
-                return passages
-
             ml_result = await run_ml_pipeline(
                 analysis_id=analysis_id,
                 model_outputs=models,
-                retrieve_fn=_evidence_step,
                 publish=publish,
             )
             ml_warnings = ml_result.get("warnings", []) or []
