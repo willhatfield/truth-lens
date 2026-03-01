@@ -9,6 +9,7 @@ import KnowledgeDeck from './KnowledgeDeck';
 import Pipeline from './Pipeline';
 import EvidenceNetwork from './EvidenceNetwork';
 import SynthesisView from './SynthesisView';
+import TrustMatrix from './TrustMatrix';
 import React from 'react';
 
 // --- MOCK HISTORY DATA ---
@@ -63,7 +64,7 @@ export default function ArenaPage() {
   // State for AI Model Toggles
   const [selectedModels, setSelectedModels] = useState(['GPT-4 (OpenAI)', 'Gemini (Google)', 'Claude (Anthropic)', 'Llama 3 (Meta)', 'Kimi (Moonshot)']);
 
-  const navItems = ["Synthesized Answer", "Constellation", "Pipeline", "Heatmap"];
+  const navItems = ["Synthesized Answer", "Constellation", "Pipeline", "Heatmap", "Trust Matrix"];
   const aiModels = [
     { name: 'GPT-4 (OpenAI)', color: '#10A37F', checkColor: '#024023' },
     { name: 'Gemini (Google)', color: '#428F54', checkColor: '#02542D' },
@@ -278,6 +279,7 @@ export default function ArenaPage() {
             case "Synthesized Answer": return <SynthesisView onOpenVisualizer={(view) => setActiveVisualization(view)} result={result} />;
             case "Constellation": return <Constellation selectedModels={selectedModels} result={result} />;
             case "Heatmap": return <Heatmap selectedModels={selectedModels} result={result} />;
+            case "Trust Matrix": return <TrustMatrix selectedModels={selectedModels} result={result} />;
             case "Knowledge Deck": return <KnowledgeDeck selectedModels={selectedModels} result={result} />;
             case "Pipeline": return <Pipeline selectedModels={selectedModels} pipelineData={result?.pipelineFlow} />;
             case "Evidence Network": return <EvidenceNetwork selectedModels={selectedModels} result={result} />;
