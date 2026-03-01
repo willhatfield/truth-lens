@@ -333,11 +333,6 @@ export default function SynthesisView({ onOpenVisualizer, result }: SynthesisVie
               </div>
             </div>
 
-            <button onClick={() => onOpenVisualizer('Evidence Network')} className="w-full group relative flex items-center justify-between bg-gradient-to-r from-[#1A2335] to-[#2C3A50] hover:to-[#3D2E50] border border-[#588983]/30 p-4 rounded-xl shadow-lg transition-all duration-300">
-              <div className="flex flex-col items-start"><span className="text-[#EBF0FF] font-bold text-[15px]">View Reasoning</span><span className="text-[#A9BDE8] text-[11px]">Explore Evidence Network</span></div>
-              <div className="w-8 h-8 rounded-full bg-[#121825] border border-[#2C3A50] flex items-center justify-center group-hover:scale-110 transition-transform"><ChevronRight className="w-4 h-4 text-[#EBF0FF]" /></div>
-            </button>
-
             <button onClick={() => onOpenVisualizer('Constellation')} className="w-full group flex items-center justify-between bg-[#121825] hover:bg-[#1A2335] border border-[#2C3A50] p-3 rounded-xl transition-all duration-300">
               <span className="text-[#90A2B3] group-hover:text-[#EBF0FF] text-[13px] font-medium transition-colors">Open 3D Constellation</span>
               <ExternalLink className="w-3.5 h-3.5 text-[#588983]" />
