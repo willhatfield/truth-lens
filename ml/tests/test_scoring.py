@@ -4,6 +4,7 @@ import types
 
 from scoring import (
     TOTAL_MODELS,
+    check_has_evidence,
     clamp,
     compute_agreement_score,
     compute_consistency_score,
@@ -34,6 +35,26 @@ def test_clamp_above_max():
 def test_clamp_within_range():
     """Value within range is returned unchanged."""
     assert clamp(42.0, 0.0, 100.0) == 42.0
+
+
+# ---------------------------------------------------------------------------
+# check_has_evidence
+# ---------------------------------------------------------------------------
+
+
+def test_check_has_evidence_empty_string():
+    """Empty passage ID means no evidence."""
+    assert check_has_evidence("") is False
+
+
+def test_check_has_evidence_stub_prefix():
+    """Passage IDs starting with p_default_ are stubs."""
+    assert check_has_evidence("p_default_claim1") is False
+
+
+def test_check_has_evidence_real_passage():
+    """A real passage ID returns True."""
+    assert check_has_evidence("wiki-earth-shape-001") is True
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +155,7 @@ def test_trust_score_typical():
     verification = 70.0
     independence = 60.0
     consistency = 90.0
-    result = compute_trust_score(agreement, verification, independence, consistency)
+    result = compute_trust_score(agreement, verification, independence, consistency, has_evidence=True)
     expected = round(0.35 * 80.0 + 0.35 * 70.0 + 0.15 * 60.0 + 0.15 * 90.0)
     assert result == expected
 
@@ -153,8 +174,62 @@ def test_trust_score_clamped_at_100():
 
 def test_trust_score_negative_verification_clamped():
     """Negative verification is clamped to 0 before weighting."""
-    result = compute_trust_score(100.0, -50.0, 100.0, 100.0)
+    result = compute_trust_score(100.0, -50.0, 100.0, 100.0, has_evidence=True)
     expected = round(0.35 * 100.0 + 0.35 * 0.0 + 0.15 * 100.0 + 0.15 * 100.0)
+    assert result == expected
+
+
+# ---------------------------------------------------------------------------
+# compute_trust_score — no evidence (2-component formula)
+# ---------------------------------------------------------------------------
+
+
+def test_trust_no_evidence_5_of_5():
+    """5/5 agree, no evidence: 0.70*100 + 0.30*100 = 100."""
+    agreement = compute_agreement_score(5, 5)      # 100
+    independence = compute_independence_score(5, 5)  # 100
+    result = compute_trust_score(agreement, 0.0, independence, 0.0, has_evidence=False)
+    assert result == 100
+
+
+def test_trust_no_evidence_4_of_5():
+    """4/5 agree, no evidence: 0.70*80 + 0.30*80 = 80."""
+    agreement = compute_agreement_score(4, 5)      # 80
+    independence = compute_independence_score(4, 5)  # 80
+    result = compute_trust_score(agreement, 0.0, independence, 0.0, has_evidence=False)
+    assert result == 80
+
+
+def test_trust_no_evidence_3_of_5():
+    """3/5 agree, no evidence: 0.70*60 + 0.30*60 = 60."""
+    agreement = compute_agreement_score(3, 5)      # 60
+    independence = compute_independence_score(3, 5)  # 60
+    result = compute_trust_score(agreement, 0.0, independence, 0.0, has_evidence=False)
+    assert result == 60
+
+
+def test_trust_no_evidence_2_of_5():
+    """2/5 agree, no evidence: 0.70*40 + 0.30*40 = 40."""
+    agreement = compute_agreement_score(2, 5)      # 40
+    independence = compute_independence_score(2, 5)  # 40
+    result = compute_trust_score(agreement, 0.0, independence, 0.0, has_evidence=False)
+    assert result == 40
+
+
+def test_trust_no_evidence_1_of_5():
+    """1/5 agree, no evidence: 0.70*20 + 0.30*20 = 20."""
+    agreement = compute_agreement_score(1, 5)      # 20
+    independence = compute_independence_score(1, 5)  # 20
+    result = compute_trust_score(agreement, 0.0, independence, 0.0, has_evidence=False)
+    assert result == 20
+
+
+def test_trust_has_evidence_defaults_false():
+    """has_evidence defaults to False, using 2-component formula."""
+    agreement = compute_agreement_score(4, 5)      # 80
+    independence = compute_independence_score(4, 5)  # 80
+    result = compute_trust_score(agreement, 0.0, independence, 0.0)
+    expected = round(0.70 * 80.0 + 0.30 * 80.0)
     assert result == expected
 
 
