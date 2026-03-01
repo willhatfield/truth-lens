@@ -163,7 +163,7 @@ class NliVerifyBatchRequest(BaseRequest):
     """Input for the nli_verify_batch Modal function."""
     pairs: List[NliPairInput] = Field(..., min_length=1)
     nli_model: str = Field(
-        default="MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli"
+        default="cross-encoder/nli-deberta-v3-large"
     )
     batch_size: int = Field(default=16, ge=1, le=256)
 

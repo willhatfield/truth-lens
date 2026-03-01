@@ -138,7 +138,7 @@ class TestDownloadNliModel:
             from preload_weights import download_nli_model
             result = download_nli_model()
 
-        nli_name = "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli"
+        nli_name = "cross-encoder/nli-deberta-v3-large"
         mock_transformers.AutoTokenizer.from_pretrained.assert_called_once_with(
             nli_name,
         )

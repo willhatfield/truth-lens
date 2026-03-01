@@ -718,10 +718,10 @@ def _run_nli_batch(
     for row_idx in range(len(logits)):
         probs = _softmax(logits[row_idx])
         probs_dict: dict = {}
-        best_label = id2label[0]
+        best_label = id2label[0].lower()
         best_score = probs[0]
         for label_idx in range(len(probs)):
-            label_name = id2label[label_idx]
+            label_name = id2label[label_idx].lower()
             probs_dict[label_name] = round(probs[label_idx], 6)
             if probs[label_idx] > best_score:
                 best_score = probs[label_idx]

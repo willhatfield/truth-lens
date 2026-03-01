@@ -527,7 +527,7 @@ class TestNliVerifyBatchRequest:
             analysis_id="a1",
             pairs=[NliPairInput(**_make_nli_pair())],
         )
-        assert req.nli_model == "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli"
+        assert req.nli_model == "cross-encoder/nli-deberta-v3-large"
         assert req.batch_size == 16
         assert req.schema_version == "1.0"
 
